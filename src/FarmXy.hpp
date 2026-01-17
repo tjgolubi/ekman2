@@ -16,8 +16,7 @@ namespace ggl = boost::geometry;
 
 namespace xy {
 
-using Meters       = double;
-using Point        = geom::Pt<Meters>;
+using Point        = geom::Pt;
 using LineString   = ggl::model::linestring<Point>;
 using PolyLine     = ggl::model::multi_linestring<LineString>;
 using Ring         = ggl::model::ring<Point, true >;

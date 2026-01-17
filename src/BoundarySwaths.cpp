@@ -3,8 +3,6 @@
 /// @author Terry Golubiewski
 #include "BoundarySwaths.hpp"
 
-#include <mp-units/systems/si/unit_symbols.h>
-
 #include <boost/geometry/geometries/box.hpp>
 
 #include <boost/geometry/algorithms/is_valid.hpp>
@@ -46,8 +44,8 @@ namespace Tune {
 constexpr int CirclePoints = 32;
 
 // Douglas–Peucker for corner detection
-constexpr auto SimplifyForCorners = 10.0 * metre;
-constexpr double CornerAngleDeg = 45.0;
+constexpr auto SimplifyForCorners = 10.0 * mp_units::si::metre;
+constexpr auto CornerAngle        = 45.0 * mp_units::si::degree;
 
 } // Tune
 
@@ -65,11 +63,12 @@ void EnsureValid(const Geo& geo) {
 } // EnsureValid
 
 xy::MultiPolygon ComputeInset(const xy::Polygon& in, Distance offset) {
+  static constexpr auto metre =  mp_units::si::metre;
   EnsureValid(in);
   gsl_Expects(offset >= 1.0 * metre);
 
   // ---- Inset buffer (negative distance) ----
-  auto distance = ggl::strategy::buffer::distance_symmetric<xy::Meters>{-offset.numerical_value_in(metre)};
+  auto distance = ggl::strategy::buffer::distance_symmetric<double>{-offset.numerical_value_in(metre)};
   auto side  = ggl::strategy::buffer::side_straight{};
   auto join  = ggl::strategy::buffer::join_round{Tune::CirclePoints};
   auto end   = ggl::strategy::buffer::end_round{Tune::CirclePoints};
@@ -83,6 +82,7 @@ xy::MultiPolygon ComputeInset(const xy::Polygon& in, Distance offset) {
 
 template<class Geo>
 Geo Simplify(const Geo& geo, Distance tolerance) {
+  static constexpr auto metre = mp_units::si::metre;
   gsl_Expects(tolerance >= 0.01 * metre);
   auto simp = Geo{};
   auto failure = ggl::validity_failure_type{};
@@ -182,7 +182,7 @@ CornerVec FindCornersSimp(const xy::Ring& ring) {
   gsl_Expects(ring.size() >= 3);
   gsl_Expects(ring.front() == ring.back());
   auto corners = CornerVec{};
-  static constexpr auto Theta = geom::Radians::FromDegrees(Tune::CornerAngleDeg);
+  static constexpr auto Theta = Tune::CornerAngle.in(mp_units::si::radian);
   auto n = std::ssize(ring) - 1;
   auto curr = ring[0] - ring[n-1];
   for (auto i = gsl::index{0}; i != n; ++i) {
@@ -249,13 +249,13 @@ template<class G>  struct Xy  { using type = void; };
 template<class XY> using GeoT = Geo<std::remove_cv_t<XY>>::type;
 template<class G>  using XyT  =  Xy<std::remove_cv_t<G >>::type;
 
-template<> struct Geo<xy::Path>    { using type = geo::Path; };
+template<> struct Geo<xy::Path>      { using type = geo::Path; };
 template<> struct Geo<xy::MultiPath> { using type = geo::MultiPath; };
-template<> struct Geo<xy::Polygon> { using type = geo::Polygon; };
+template<> struct Geo<xy::Polygon>   { using type = geo::Polygon; };
 
-template<> struct Xy<geo::Path>    { using type = xy::Path; };
+template<> struct Xy<geo::Path>      { using type = xy::Path; };
 template<> struct Xy<geo::MultiPath> { using type = xy::MultiPath; };
-template<> struct Xy<geo::Polygon> { using type = xy::Polygon; };
+template<> struct Xy<geo::Polygon>   { using type = xy::Polygon; };
 
 template<class G, class Proj, typename CT>
 XyT<G> TransformToXy(const G& geo_in,
@@ -308,7 +308,7 @@ auto MakeProjection(const Geo& geo) {
 
 std::vector<xy::MultiPath>
 BoundarySwaths(const xy::Polygon& poly_in, Distance offset, Distance simplifyTol) {
-  if (offset < 0.10 * metre)
+  if (offset < 0.10 * mp_units::si::metre)
     throw std::runtime_error{"<offset_m> must be >= 10 cm"};
   // (void) FindCorners(poly_in); // Modifys poly_in.
   auto inset_mp = detail::ComputeInset(poly_in, offset);
@@ -336,6 +336,3 @@ BoundarySwaths(const geo::Polygon& poly_in, Distance offset, Distance simplifyTo
 } // BoundarySwaths
 
 } // farm_db
-
-// ============================================================================
-

@@ -13,30 +13,33 @@
 
 namespace boost::geometry::traits {
 
-template<typename U>
-struct tag<geom::Pt<U>> { using type = point_tag; };
+template<>
+struct tag<geom::Pt> { using type = point_tag; };
 
-template<typename U>
-struct coordinate_type<geom::Pt<U>> { using type = U; };
+template<>
+struct coordinate_type<geom::Pt> { using type = double; };
 
-template<typename U>
-struct coordinate_system<geom::Pt<U>> { using type = cs::cartesian; };
+template<>
+struct coordinate_system<geom::Pt> { using type = cs::cartesian; };
 
-template<typename U>
-struct dimension<geom::Pt<U>> : std::integral_constant<std::size_t, 2> { };
+template<>
+struct dimension<geom::Pt> : std::integral_constant<std::size_t, 2> { };
 
-template<std::size_t Dim, typename U>
+template<std::size_t Dim>
 requires (Dim == 0 || Dim == 1)
-struct access<geom::Pt<U>, Dim> {
-  static constexpr U get(const geom::Pt<U>& p) { return get<Dim>(p); }
-  static constexpr void set(geom::Pt<U>& p, U v) { get<Dim>(p) = v; }
+struct access<geom::Pt, Dim> {
+  static constexpr double get(const geom::Pt& p)
+    { return p[Dim].numerical_value_in(mp_units::si::metre); }
+  static constexpr void set(geom::Pt& p, double v)
+    { p[Dim] = v * mp_units::si::metre; }
 }; // access
 
-template<typename U>
-struct make<geom::Pt<U>> {
-  using point_type = geom::Pt<U>;
+template<>
+struct make<geom::Pt> {
+  using point_type = geom::Pt;
   static constexpr auto is_specialized = true;
-  static constexpr point_type apply(U x, U y) { return point_type{x, y}; }
+  static constexpr point_type apply(double x, double y)
+    { return point_type{x * mp_units::si::metre, y * mp_units::si::metre}; }
 }; // make
 
 } // boost::geometry::traits

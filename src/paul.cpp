@@ -41,6 +41,7 @@ int main(int argc, const char *argv[]) {
     db.swVendor = "Terry Golubiewski";
     db.swVersion = "0.1 (alpha)";
 
+    constexpr geom::Distance inset = 20.0 * mp_units::si::metre;
     int nextGuideId = 1;
     int nextSwathId = 1;
     for (auto& field: db.fields) {
@@ -50,8 +51,7 @@ int main(int argc, const char *argv[]) {
         auto guideName = field.name + std::format("_{:02}", ++partNum);
         field.guides.emplace_back(guideId, guideName);
         auto& guide = field.guides.back();
-        auto geoSwaths =
-            farm_db::BoundarySwaths(farm_db::Geo(part), 20.0 * farm_db::metre);
+        auto geoSwaths = farm_db::BoundarySwaths(farm_db::Geo(part), inset);
         int swathNum = 0;
         for (const auto& geoSwath: geoSwaths) {
           auto paths = std::vector<farm_db::Path>{};

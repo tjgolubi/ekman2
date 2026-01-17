@@ -28,6 +28,8 @@ namespace farm_db {
 using XmlNode = pugi::xml_node;
 using XmlAttr = pugi::xml_attribute;
 
+struct FarmDb;
+
 struct Customer {    // CTR
   std::string id;    // A
   std::string name;  // B
@@ -41,11 +43,11 @@ struct Customer {    // CTR
 struct Farm {           // FRM
   std::string id;       // A
   std::string name;     // B
-  std::string ctrId;    // I optional
+  const Customer* ctr = nullptr;  // I optional
   std::vector<std::pair<std::string, std::string>> otherAttrs;
   Farm() = default;
   Farm(std::string_view id_, std::string_view name_);
-  explicit Farm(const XmlNode& node);
+  Farm(const FarmDb& db, const XmlNode& node);
   void dump(XmlNode& node) const;
 }; // Farm
 
@@ -219,14 +221,14 @@ struct Field { // PFD
   std::string code;   // B optional
   std::string name;   // C
   unsigned area;      // D
-  std::string ctrId;  // E optional
-  std::string frmId;  // F optional
+  const Customer* ctr = nullptr;  // E optional
+  const Farm*     frm = nullptr;  // F optional
   std::vector<std::pair<std::string, std::string>> otherAttrs;
   std::vector<Polygon> parts;
   std::vector<Guide> guides;
   Field() = default;
   Field(std::string_view id_, std::string_view name_="", unsigned area_=0);
-  explicit Field(const XmlNode& x);
+  Field(const FarmDb& db, const XmlNode& x);
   void dump(XmlNode& x) const;
 }; // Field
 

@@ -124,7 +124,7 @@ Farm::Farm(std::string_view id_, std::string_view name_)
     throw std::invalid_argument{"Farm: invalid id: " + id};
 }
 
-Farm::Farm(const XmlNode& node)
+Farm::Farm(const FarmDb& db, const XmlNode& node)
   : id   {RequireAttr<std::string>(node, "A")}
   , name {RequireAttr<std::string>(node, "B")}
 {
@@ -132,7 +132,19 @@ Farm::Farm(const XmlNode& node)
     auto k = tjg::name(a);
     if (k == "A" || k == "B")
       continue;
-    if (k == "I") ctrId = tjg::get_attr<std::string>(a);
+    if (k == "I") {
+      auto ctrId = tjg::get_attr<std::string>(a);
+      if (ctr) {
+        if (ctr->id != ctrId)
+          throw std::runtime_error{"Farm: extra customer: " + ctrId};
+        continue;
+      }
+      auto iter = std::ranges::find_if(db.customers,
+                             [&](const Customer& x) { return x.id == ctrId; });
+      if (iter == db.customers.end())
+        throw std::runtime_error{"Farm: unknown customer: " + ctrId};
+      ctr = &*iter;
+    }
     else otherAttrs.emplace_back(a.name(), a.value());
   }
 } // Farm::ctor
@@ -141,7 +153,8 @@ void Farm::dump(XmlNode& node) const {
   node.set_name("FRM");
   node.append_attribute("A") = id;
   node.append_attribute("B") = name;
-  node.append_attribute("I") = ctrId;
+  if (ctr)
+    node.append_attribute("I") = ctr->id;
   for (const auto& [k, v]: otherAttrs)
     node.append_attribute(k) = v;
 } // Farm::dump
@@ -538,7 +551,7 @@ Field::Field(std::string_view id_, std::string_view name_, unsigned area_)
     throw std::invalid_argument{"Field: invalid id: " + id};
 }
 
-Field::Field(const XmlNode& x)
+Field::Field(const FarmDb& db, const XmlNode& x)
   : id   {RequireAttr<std::string>(x, "A")}
   , name {RequireAttr<std::string>(x, "C")}
   , area {RequireAttr<unsigned>   (x, "D")}
@@ -548,8 +561,32 @@ Field::Field(const XmlNode& x)
     if (k == "A" || k == "C" || k == "D")
       continue;
     if      (k == "B") code  = tjg::get_attr<std::string>(a);
-    else if (k == "E") ctrId = tjg::get_attr<std::string>(a);
-    else if (k == "F") frmId = tjg::get_attr<std::string>(a);
+    else if (k == "E") {
+      auto ctrId = tjg::get_attr<std::string>(a);
+      if (ctr) {
+        if (ctr->id != ctrId)
+          throw std::runtime_error{"Field: extra customer: " + ctrId};
+        continue;
+      }
+      auto iter = std::ranges::find_if(db.customers,
+                            [&](const Customer& x) { return x.id == ctrId; });
+      if (iter == db.customers.end())
+        throw std::runtime_error{"Field: unknown customer: " + ctrId};
+      ctr = &*iter;
+    }
+    else if (k == "F") {
+      auto frmId = tjg::get_attr<std::string>(a);
+      if (frm) {
+        if (frm->id != frmId)
+          throw std::runtime_error{"Field: extra farm: " + frmId};
+        continue;
+      }
+      auto iter = std::ranges::find_if(db.farms,
+                                [&](const Farm& x) { return x.id == frmId; });
+      if (iter == db.farms.end())
+        throw std::runtime_error{"Field: unknown farm: " + frmId};
+      frm = &*iter;
+    }
     else otherAttrs.emplace_back(k, a.value());
   }
   for (const auto& c: x.children()) {
@@ -568,8 +605,8 @@ void Field::dump(XmlNode& node) const {
   if (!code.empty()) node.append_attribute("B") = code;
   node.append_attribute("C") = name;
   node.append_attribute("D") = area;
-  if (!ctrId.empty()) node.append_attribute("E") = ctrId;
-  if (!frmId.empty()) node.append_attribute("F") = frmId;
+  if (ctr) node.append_attribute("E") = ctr->id;
+  if (frm) node.append_attribute("F") = frm->id;
   for (const auto& [k, v]: otherAttrs)
     node.append_attribute(k) = v;
   for (const auto& p: parts) {
@@ -636,9 +673,48 @@ FarmDb::FarmDb(const XmlNode& node)
     if (c.type() != pugi::node_element)
       continue;
     auto k = tjg::name(c);
-    if      (k == "CTR") customers.emplace_back(c);
-    else if (k == "FRM") farms.emplace_back(c);
-    else if (k == "PFD") fields.emplace_back(c);
+    if      (k == "CTR") {
+      customers.emplace_back(c);
+      const auto& ctr = customers.back();
+      auto iter = std::ranges::find_if(customers,
+                            [&](const Customer& x) { return x.id == ctr.id; });
+      if (iter == customers.end())
+        throw std::logic_error{"FarmDb: append customer failed: " + ctr.id};
+      if (iter != std::prev(customers.end())) {
+        std::cerr << "FarmDb: duplicate customer ignored: " << ctr.id
+                  << " [" << ctr.name << "]\n";
+        customers.pop_back();
+        continue;
+      }
+    }
+    else if (k == "FRM") {
+      farms.emplace_back(*this, c);
+      const auto& frm = farms.back();
+      auto iter = std::ranges::find_if(farms,
+                            [&](const Farm& x) { return x.id == frm.id; });
+      if (iter == farms.end())
+        throw std::logic_error{"FarmDb: append farm failed: " + frm.id};
+      if (iter != std::prev(farms.end())) {
+        std::cerr << "FarmDb: duplicate farm ignored: " << frm.id
+                  << " [" << frm.name << "]\n";
+        farms.pop_back();
+        continue;
+      }
+    }
+    else if (k == "PFD") {
+      fields.emplace_back(*this, c);
+      const auto& pfd = fields.back();
+      auto iter = std::ranges::find_if(fields,
+                                [&](const Field& x) { return x.id == pfd.id; });
+      if (iter == fields.end())
+        throw std::logic_error{"FarmDb: append field failed: " + pfd.id};
+      if (iter != std::prev(fields.end())) {
+        std::cerr << "FarmDb: duplicate field ignored: " << pfd.id
+                  << " [" << pfd.name << "]\n";
+        fields.pop_back();
+        continue;
+      }
+    }
     else if (k == "VPN") values.emplace_back(c);
     else std::cerr << "Root: ignored element: " << k << '\n';
   }
