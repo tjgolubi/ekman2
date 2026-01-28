@@ -70,17 +70,19 @@ using Path         = LineString;
 using MultiPath    = PolyLine;
 } // geo
 
-constexpr geo::Point Geo(const Point& pt) noexcept { return pt.point; }
-constexpr Point MakePoint(const geo::Point& pt, Point::Type type) noexcept
-  { return Point{pt, type}; }
+constexpr geo::Point Geo(const LatLon& pt) noexcept { return pt; }
+constexpr geo::Path Geo(const Path& path) noexcept
+  { return geo::Path{path.begin(), path.end()}; }
 
-geo::LineString Geo(const LineString& lstr);
 geo::Polygon Geo(const Polygon& poly);
 
-geo::Ring MakeGeoRing(const LineString& lstr);
-geo::Hole MakeGeoHole(const LineString& lstr);
+constexpr LatLon MakePoint(const geo::Point& pt) noexcept { return pt; }
 
-Path MakePath(const geo::LineString& lstr);
-Path MakePath(const geo::Ring& ring);
+geo::Ring MakeGeoRing(const Ring& ring);
+geo::Hole MakeGeoHole(const Ring& ring);
+
+constexpr Path MakePath(const geo::Path& path) noexcept { return Path{path}; }
+constexpr Path MakePath(const geo::Ring& ring) noexcept { return Path{ring}; }
+constexpr Ring MakeRing(const geo::Ring& ring) noexcept { return Ring{ring}; }
 
 } // farm_db

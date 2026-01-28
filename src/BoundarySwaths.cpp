@@ -68,7 +68,8 @@ xy::MultiPolygon ComputeInset(const xy::Polygon& in, Distance offset) {
   gsl_Expects(offset >= 1.0 * metre);
 
   // ---- Inset buffer (negative distance) ----
-  auto distance = ggl::strategy::buffer::distance_symmetric<double>{-offset.numerical_value_in(metre)};
+  auto distance = ggl::strategy::buffer::distance_symmetric<double>
+                                            {-offset.numerical_value_in(metre)};
   auto side  = ggl::strategy::buffer::side_straight{};
   auto join  = ggl::strategy::buffer::join_round{Tune::CirclePoints};
   auto end   = ggl::strategy::buffer::end_round{Tune::CirclePoints};
@@ -88,7 +89,8 @@ Geo Simplify(const Geo& geo, Distance tolerance) {
   auto failure = ggl::validity_failure_type{};
   while (tolerance >= 0.01 * metre) {
     ggl::simplify(geo, simp, tolerance.numerical_value_in(metre));
-    if (ggl::is_valid(simp, failure) || failure == ggl::failure_wrong_orientation)
+    if (ggl::is_valid(simp, failure)
+        || failure == ggl::failure_wrong_orientation)
       return simp;
     switch (failure) {
       case ggl::failure_self_intersections:
@@ -249,13 +251,15 @@ template<class G>  struct Xy  { using type = void; };
 template<class XY> using GeoT = Geo<std::remove_cv_t<XY>>::type;
 template<class G>  using XyT  =  Xy<std::remove_cv_t<G >>::type;
 
-template<> struct Geo<xy::Path>      { using type = geo::Path; };
-template<> struct Geo<xy::MultiPath> { using type = geo::MultiPath; };
-template<> struct Geo<xy::Polygon>   { using type = geo::Polygon; };
+template<> struct Geo<xy::Path>         { using type = geo::Path;         };
+template<> struct Geo<xy::MultiPath>    { using type = geo::MultiPath;    };
+template<> struct Geo<xy::Polygon>      { using type = geo::Polygon;      };
+template<> struct Geo<xy::MultiPolygon> { using type = geo::MultiPolygon; };
 
-template<> struct Xy<geo::Path>      { using type = xy::Path; };
-template<> struct Xy<geo::MultiPath> { using type = xy::MultiPath; };
-template<> struct Xy<geo::Polygon>   { using type = xy::Polygon; };
+template<> struct Xy<geo::Path>         { using type = xy::Path;         };
+template<> struct Xy<geo::MultiPath>    { using type = xy::MultiPath;    };
+template<> struct Xy<geo::Polygon>      { using type = xy::Polygon;      };
+template<> struct Xy<geo::MultiPolygon> { using type = xy::MultiPolygon; };
 
 template<class G, class Proj, typename CT>
 XyT<G> TransformToXy(const G& geo_in,
@@ -306,13 +310,15 @@ auto MakeProjection(const Geo& geo) {
 
 } // detail
 
-std::vector<xy::MultiPath>
+xy::MultiPolygon
 BoundarySwaths(const xy::Polygon& poly_in, Distance offset, Distance simplifyTol) {
   if (offset < 0.10 * mp_units::si::metre)
     throw std::runtime_error{"<offset_m> must be >= 10 cm"};
   // (void) FindCorners(poly_in); // Modifys poly_in.
   auto inset_mp = detail::ComputeInset(poly_in, offset);
   auto simp_mp  = detail::Simplify(inset_mp, simplifyTol);
+  return simp_mp;
+#if 0
   auto linesVec = std::vector<xy::MultiPath>{};
   for (auto& poly: simp_mp) {
     auto cv = detail::FindCorners(poly); // Modifies poly
@@ -323,9 +329,10 @@ BoundarySwaths(const xy::Polygon& poly_in, Distance offset, Distance simplifyTol
       linesVec.emplace_back(detail::ExtractSwaths(ring, *++cp));
   }
   return linesVec;
+#endif
 } // BoundarySwaths
 
-std::vector<geo::MultiPath>
+geo::MultiPolygon
 BoundarySwaths(const geo::Polygon& poly_in, Distance offset, Distance simplifyTol)
 {
   const auto proj = detail::MakeProjection(poly_in);

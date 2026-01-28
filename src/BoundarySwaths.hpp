@@ -14,11 +14,11 @@ using Distance = geom::Distance;
 
 constexpr Distance DefaultSimplifyTol = 0.10 * mp_units::si::metre;
 
-std::vector<xy::MultiPath>
+xy::MultiPolygon
 BoundarySwaths(const xy::Polygon& poly_in, Distance offset,
                Distance simplifyTol = DefaultSimplifyTol);
 
-std::vector<geo::MultiPath>
+geo::MultiPolygon
 BoundarySwaths(const geo::Polygon& poly_in, Distance offset,
                Distance simplifyTol = DefaultSimplifyTol);
 

@@ -13,31 +13,21 @@
 
 namespace farm_db {
 
-geo::LineString Geo(const LineString& lstr) {
-  auto out = geo::LineString{};
-  out.reserve(lstr.points.size());
-  for (const auto& p: lstr.points)
-    out.push_back(Geo(p));
-  return out;
-} // Geo(LineString)
-
-geo::Ring MakeGeoRing(const LineString& lstr) {
-  auto ls = Geo(lstr);
-  auto out = geo::Ring{ls.begin(), ls.end()};
+geo::Ring MakeGeoRing(const Path& path) {
+  auto out = geo::Ring{path.begin(), path.end()};
   ggl::correct(out);
   auto msg = std::string{};
   if (!ggl::is_valid(out, msg))
-    throw std::runtime_error{"LineString::ring: not a ring: " + msg};
+    throw std::runtime_error{"MakeGeoRing: not a ring: " + msg};
   return out;
 } // MakeGeoRing
 
-geo::Hole MakeGeoHole(const LineString& lstr) {
-  auto ls = Geo(lstr);
-  auto out = geo::Hole{ls.begin(), ls.end()};
+geo::Hole MakeGeoHole(const Path& path) {
+  auto out = geo::Hole{path.begin(), path.end()};
   ggl::correct(out);
   auto msg = std::string{};
   if (!ggl::is_valid(out, msg))
-    throw std::runtime_error{"LineString::hole: not a hole: " + msg};
+    throw std::runtime_error{"MakeGeoHole: not a hole: " + msg};
   return out;
 } // MakeGeoHole
 
@@ -52,21 +42,5 @@ geo::Polygon Geo(const Polygon& poly) {
     throw std::runtime_error{"Geo(Polygon): invalid polygon: " + msg};
   return out;
 } // Geo(Polygon)
-
-Path MakePath(const geo::LineString& lstr) {
-  auto rval = Path{};
-  rval.reserve(lstr.size());
-  for (const auto& p: lstr)
-    rval.push_back(p);
-  return rval;
-}
-
-Path MakePath(const geo::Ring& ring) {
-  auto rval = Path{};
-  rval.reserve(ring.size());
-  for (const auto& p: ring)
-    rval.push_back(p);
-  return rval;
-}
 
 } // farm_db
