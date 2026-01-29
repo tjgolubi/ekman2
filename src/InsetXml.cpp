@@ -21,6 +21,7 @@ struct Options {
   fs::path inputPath = "TASKDATA.XML";
   fs::path outputPath;
   double insetFt = 0.0;
+  std::string insetName;
 }; // Options
 
 std::optional<Options> ParseArgs(int argc, const char* argv[]) {
@@ -34,6 +35,8 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
       "Input ISO11783 file (default: TASKDATA.XML).")
     ("inset,d", po::value<double>(&opts.insetFt)->required(),
       "Inset distance in feet (required).")
+    ("name,n", po::value<std::string>(&opts.insetName)->default_value("Inset"),
+      "Inset name (default: \"Inset\").")
     ("output,o", po::value<fs::path>(&opts.outputPath)->required(),
       "Output file path (required).");
 
@@ -122,7 +125,7 @@ int main(int argc, const char* argv[]) {
 #endif
 
     if (opts->insetFt != 0.0)
-      db.inset(opts->insetFt * mp_units::yard_pound::foot);
+      db.inset(opts->insetName, opts->insetFt * mp_units::yard_pound::foot);
     const auto ext = opts->outputPath.extension();
     if (ext == ".wkt" || ext == ".WKT")
       db.writeWkt(opts->outputPath);
@@ -139,4 +142,3 @@ int main(int argc, const char* argv[]) {
 
   return 1;
 } // main
-

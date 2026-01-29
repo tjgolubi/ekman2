@@ -120,7 +120,7 @@ struct Field {
   std::vector<Attribute> otherAttr;
   Field() = default;
   explicit Field(std::string_view name_) : name{name_} { }
-  void inset(geom::Distance dist);
+  void inset(const std::string& name, geom::Distance dist);
 }; // Field
 
 struct Farm {
@@ -151,7 +151,7 @@ struct FarmDb {
   std::vector<std::unique_ptr<Field>>    fields;
   std::vector<Attribute> otherAttr;
   FarmDb() = default;
-  void inset(geom::Distance dist);
+  void inset(const std::string& name, geom::Distance dist);
   void writeXml(const std::filesystem::path& output) const;
   void writeWkt(const std::filesystem::path& output) const;
   static FarmDb ReadXml(const std::filesystem::path& input);
