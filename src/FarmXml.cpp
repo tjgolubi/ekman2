@@ -251,7 +251,6 @@ Path ReadPath(const XmlNode& x, isoxml::PointType expPtType) {
   return pts;
 } // ReadPath
 
-#if 0
 void WritePath(XmlNode& node, const Path& path, isoxml::LineStringType lsgType,
                                                 isoxml::PointType ptType)
 {
@@ -260,7 +259,6 @@ void WritePath(XmlNode& node, const Path& path, isoxml::LineStringType lsgType,
   for (const auto& p: path)
     WritePoint(lsg, p, ptType);
 } // WritePath
-#endif
 
 Path ReadSwathPath(const XmlNode& x) {
   using namespace isoxml;
@@ -373,7 +371,6 @@ Polygon ReadBoundary(const XmlNode& x) {
   return ReadPolygon(x, PolygonType::Boundary, PointType::Field);
 }
 
-#if 0
 void WritePolygon(XmlNode& node, const Polygon& poly,
                   isoxml::PolygonType polyType, isoxml::PointType ptType)
 {
@@ -389,7 +386,6 @@ void WriteBoundary(XmlNode& node, const Polygon& poly) {
   using namespace isoxml;
   WritePolygon(node, poly, PolygonType::Boundary, PointType::Field);
 } // WriteBoundary
-#endif
 
 Swath ReadSwath(const XmlNode& node) {
   using namespace isoxml;
@@ -483,7 +479,7 @@ void WriteSwath(XmlNode& node, const Swath& swath, int id) {
   auto ggp = node.append_child("GGP");
   ggp.append_attribute("A") = "GGP" + idStr;
   auto name = swath.name;
-  if (name.empty()) name = "Swath";
+  if (name.empty()) name = "Swath" + idStr;
   ggp.append_attribute("B") = name;
   auto gpn = ggp.append_child("GPN");
   gpn.append_attribute("A") = "GPN" + idStr;
@@ -542,10 +538,8 @@ void WriteField(XmlNode& node, const Field& field, int id,
   if (farmId != 0) pfd.append_attribute("F") = "FRM" + std::to_string(farmId);
   for (const auto& [k, v]: field.otherAttr)
     pfd.append_attribute(k) = v;
-#if 0
   for (const auto& p: field.parts)
     WriteBoundary(pfd, p);
-#endif
   for (const auto& s: field.swaths)
     WriteSwath(pfd, s, ++swathId);
 } // WriteField
