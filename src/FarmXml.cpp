@@ -552,14 +552,33 @@ void WriteField(XmlNode& node, const Field& field, int id,
 
 } // local
 
-FarmDb ReadFarmDb(const XmlNode& node) {
+FarmDb FarmDb::ReadXml(const std::filesystem::path& input) {
+  auto doc = pugi::xml_document{};
+
+  {
+    auto res = doc.load_file(input.c_str(),
+                             pugi::parse_default | pugi::parse_ws_pcdata);
+    if (!res) {
+      auto msg = std::format("{}: XML parse error: {} (offset {})",
+                         input.generic_string(), res.description(), res.offset);
+      throw std::runtime_error{msg};
+    }
+  }
+
+  auto root = doc.child(isoxml::Root);
+  if (!root) {
+    auto msg = std::format("{}: missing root <{}>",
+                           input.generic_string(), isoxml::Root);
+    throw std::runtime_error{msg};
+  }
+
   FarmDb db;
-  db.versionMajor = RequireAttr<int>(node, isoxml::root_attr::VersionMajor);
-  db.versionMinor = RequireAttr<int>(node, isoxml::root_attr::VersionMinor);
+  db.versionMajor = RequireAttr<int>(root, isoxml::root_attr::VersionMajor);
+  db.versionMinor = RequireAttr<int>(root, isoxml::root_attr::VersionMinor);
   auto custDb  = IndexDb{};
   auto farmDb  = IndexDb{};
   auto fieldDb = IndexDb{};
-  for (const auto& a : node.attributes()) {
+  for (const auto& a : root.attributes()) {
     const auto k = tjg::name(a);
     if (   k == isoxml::root_attr::VersionMajor
         || k == isoxml::root_attr::VersionMinor)
@@ -575,7 +594,7 @@ FarmDb ReadFarmDb(const XmlNode& node) {
   }
   if (db.versionMajor < 0 || db.versionMinor < 0)
     throw std::runtime_error{"ReadFarmDb: missing VersionMajor/VersionMinor"};
-  for (const auto& c: node.children()) {
+  for (const auto& c: root.children()) {
     if (c.type() != pugi::node_element)
       continue;
     auto k = tjg::name(c);
@@ -688,7 +707,7 @@ FarmDb ReadFarmDb(const XmlNode& node) {
     else std::cerr << "ReadFarmDb: ignored element " << k << '\n';
   }
   return db;
-} // ReadFarmDb
+} // FarmDb::ReadXml
 
 void FarmDb::writeXml(const std::filesystem::path& output) const {
   auto doc = pugi::xml_document{};

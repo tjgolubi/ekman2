@@ -20,10 +20,6 @@
 #include <functional>
 #include <utility>
 
-namespace pugi {
-struct xml_node;
-} // pugi
-
 namespace farm_db {
 
 namespace units {
@@ -157,9 +153,8 @@ struct FarmDb {
   FarmDb() = default;
   void inset(geom::Distance dist);
   void writeXml(const std::filesystem::path& output) const;
+  static FarmDb ReadXml(const std::filesystem::path& input);
 }; // FarmDb
-
-FarmDb ReadFarmDb(const pugi::xml_node&);
 
 } // farm_db
 

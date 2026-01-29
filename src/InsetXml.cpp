@@ -2,8 +2,6 @@
 
 #include <boost/program_options.hpp>
 
-#include <pugixml.hpp>
-
 #include <mp-units/systems/yard_pound.h>
 
 #include <filesystem>
@@ -17,7 +15,6 @@
 #include <cstdlib>
 
 namespace po = boost::program_options;
-namespace fs = std::filesystem;
 
 struct Options {
   std::string inputPath = "TASKDATA.XML";
@@ -96,28 +93,11 @@ int main(int argc, const char* argv[]) {
     if (!opts)
       return 0;
 
-    auto input  = fs::path{opts->inputPath};
-    auto output = fs::path{opts->outputPath};
+    auto input  = std::filesystem::path{opts->inputPath};
+    auto output = std::filesystem::path{opts->outputPath};
     auto inset  = opts->insetFt * mp_units::yard_pound::foot;
 
-    static const char* RootName = "ISO11783_TaskData";
-
-    auto doc = pugi::xml_document{};
-    auto res = doc.load_file(input.c_str(),
-                             pugi::parse_default | pugi::parse_ws_pcdata);
-    if (!res) {
-      std::cerr << std::format("XML parse error: {} (offset {})\n",
-                               res.description(), res.offset);
-      return 1;
-    }
-
-    auto root = doc.child(RootName);
-    if (!root) {
-      std::cerr << std::format("error: missing root <{}>\n", RootName);
-      return 1;
-    }
-
-    auto db = farm_db::ReadFarmDb(root);
+    auto db = farm_db::FarmDb::ReadXml(input);
     std::cout << db.customers.size() << " customers\n"
               << db.farms.size()     << " farms\n"
               << db.fields.size()    << " fields\n";
