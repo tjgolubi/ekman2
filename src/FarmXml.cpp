@@ -216,10 +216,10 @@ Point ReadPoint(const XmlNode& x) {
 
 void WritePoint(XmlNode& node, const LatLon& pt, isoxml::PointType type) {
   using mp_units::si::unit_symbols::deg;
-  node.set_name("PNT");
-  node.append_attribute("A") = static_cast<int>(type);
-  node.append_attribute("C") = pt.latitude .numerical_value_in(deg);
-  node.append_attribute("D") = pt.longitude.numerical_value_in(deg);
+  auto pnt = node.append_child("PNT");
+  pnt.append_attribute("A") = static_cast<int>(type);
+  pnt.append_attribute("C") = pt.latitude .numerical_value_in(deg);
+  pnt.append_attribute("D") = pt.longitude.numerical_value_in(deg);
 } // WritePoint
 
 Path ReadPath(const XmlNode& x, isoxml::PointType expPtType) {
@@ -255,17 +255,14 @@ Path ReadPath(const XmlNode& x, isoxml::PointType expPtType) {
 void WritePath(XmlNode& node, const Path& path, isoxml::LineStringType lsgType,
                                                 isoxml::PointType ptType)
 {
-  node.set_name("LSG");
-  node.append_attribute("A") = static_cast<int>(lsgType);
-  for (const auto& p: path) {
-    auto pnt = node.append_child("PNT");
-    WritePoint(pnt, p, ptType);
-  }
+  auto lsg = node.append_child("LSG");
+  lsg.append_attribute("A") = static_cast<int>(lsgType);
+  for (const auto& p: path)
+    WritePoint(lsg, p, ptType);
 } // WritePath
 #endif
 
 Path ReadSwathPath(const XmlNode& x) {
-  gsl_Expects(tjg::name(x) == "LSG");
   using namespace isoxml;
   auto lsgType = RequireAttr<LineStringType>(x, "A");
   if (lsgType != LineStringType::Guidance) {
@@ -312,22 +309,18 @@ Path ReadSwathPath(const XmlNode& x) {
 
 void WriteSwathPath(XmlNode& node, const Path& path) {
   using namespace isoxml;
-  node.set_name("LSG");
-  node.append_attribute("A") = static_cast<int>(LineStringType::Guidance);
+  auto lsg = node.append_child("LSG");
+  lsg.append_attribute("A") = static_cast<int>(LineStringType::Guidance);
   if (path.empty())
     return;
   auto iter = path.begin();
-  auto pnt = node.append_child("PNT");
-  WritePoint(pnt, *iter, PointType::GuideA);
+  WritePoint(lsg, *iter, PointType::GuideA);
   if (++iter == path.end())
     return;
   const auto last = std::prev(path.end());
-  while (iter != last) {
-    pnt = node.append_child("PNT");
-    WritePoint(pnt, *iter++, PointType::GuidePoint);
-  }
-    pnt = node.append_child("PNT");
-  WritePoint(pnt, *iter, PointType::GuideB);
+  while (iter != last)
+    WritePoint(lsg, *iter++, PointType::GuidePoint);
+  WritePoint(lsg, *iter, PointType::GuideB);
 } // WriteSwathPath
 
 Polygon ReadPolygon(const XmlNode& x, isoxml::PolygonType polyType,
@@ -385,14 +378,11 @@ void WritePolygon(XmlNode& node, const Polygon& poly,
                   isoxml::PolygonType polyType, isoxml::PointType ptType)
 {
   using namespace isoxml;
-  node.set_name("PLN");
-  node.append_attribute("A") = static_cast<int>(polyType);
-  auto lsg = node.append_child("LSG");
-  WritePath(lsg, poly.outer, LineStringType::Exterior, ptType);
-  for (const auto& path: poly.inners) {
-    lsg = node.append_child("LSG");
-    WritePath(lsg, path, LineStringType::Interior, ptType);
-  }
+  auto pln = node.append_child("PLN");
+  pln.append_attribute("A") = static_cast<int>(polyType);
+  WritePath(pln, poly.outer, LineStringType::Exterior, ptType);
+  for (const auto& path: poly.inners)
+    WritePath(pln, path, LineStringType::Interior, ptType);
 } // WritePolygon
 
 void WriteBoundary(XmlNode& node, const Polygon& poly) {
@@ -490,13 +480,12 @@ void WriteSwath(XmlNode& node, const Swath& swath, int id) {
   using mp_units::si::unit_symbols::deg;
   using namespace isoxml;
   const auto idStr = std::to_string(id);
-  node.set_name("GGP");
-  node.append_attribute("A") = "GGP" + idStr;
+  auto ggp = node.append_child("GGP");
+  ggp.append_attribute("A") = "GGP" + idStr;
   auto name = swath.name;
   if (name.empty()) name = "Swath";
-  node.append_attribute("B") = name;
-  auto gpn = node.append_child("GPN");
-  gpn.set_name("GPN");
+  ggp.append_attribute("B") = name;
+  auto gpn = ggp.append_child("GPN");
   gpn.append_attribute("A") = "GPN" + idStr;
   gpn.append_attribute("B") = name;
   gpn.append_attribute("C") = static_cast<int>(swath.type);
@@ -522,65 +511,44 @@ void WriteSwath(XmlNode& node, const Swath& swath, int id) {
 #endif
   for (const auto& [k, v]: swath.otherAttr)
     gpn.append_attribute(k) = v;
-  auto lsg = gpn.append_child("LSG");
-  WriteSwathPath(lsg, swath.path);
+  WriteSwathPath(gpn, swath.path);
 } // WriteSwath
 
 void WriteCustomer(XmlNode& node, const Customer& cust, int id) {
-  node.set_name("CTR");
-  node.append_attribute("A") = "CTR" + std::to_string(id);
-  node.append_attribute("B") = cust.name;
+  auto ctr = node.append_child("CTR");
+  ctr.append_attribute("A") = "CTR" + std::to_string(id);
+  ctr.append_attribute("B") = cust.name;
   for (const auto& [k, v]: cust.otherAttr)
-    node.append_attribute(k) = v;
+    ctr.append_attribute(k) = v;
 } // WriteCustomer
 
 void WriteFarm(XmlNode& node, const Farm& farm, int id, int custId) {
-  node.set_name("FRM");
-  node.append_attribute("A") = "FRM" + std::to_string(id);
-  node.append_attribute("B") = farm.name;
-  if (custId != 0) node.append_attribute("I") = "CTR" + std::to_string(custId);
+  auto frm = node.append_child("FRM");
+  frm.append_attribute("A") = "FRM" + std::to_string(id);
+  frm.append_attribute("B") = farm.name;
+  if (custId != 0) frm.append_attribute("I") = "CTR" + std::to_string(custId);
   for (const auto& [k, v]: farm.otherAttr)
-    node.append_attribute(k) = v;
+    frm.append_attribute(k) = v;
 } // WriteFarm
 
 void WriteField(XmlNode& node, const Field& field, int id,
                 int custId, int farmId, int& swathId)
 {
-  node.set_name("PFD");
-  node.append_attribute("A") = "PFD" + std::to_string(id);
-  node.append_attribute("C") = field.name;
-  node.append_attribute("D") = 0;
-  if (custId != 0) node.append_attribute("E") = "CTR" + std::to_string(custId);
-  if (farmId != 0) node.append_attribute("F") = "FRM" + std::to_string(farmId);
+  auto pfd = node.append_child("PFD");
+  pfd.append_attribute("A") = "PFD" + std::to_string(id);
+  pfd.append_attribute("C") = field.name;
+  pfd.append_attribute("D") = 0;
+  if (custId != 0) pfd.append_attribute("E") = "CTR" + std::to_string(custId);
+  if (farmId != 0) pfd.append_attribute("F") = "FRM" + std::to_string(farmId);
   for (const auto& [k, v]: field.otherAttr)
-    node.append_attribute(k) = v;
+    pfd.append_attribute(k) = v;
 #if 0
-  for (const auto& p: field.parts) {
-    auto pln = node.append_child("PLN");
-    WriteBoundary(pln, p);
-  }
+  for (const auto& p: field.parts)
+    WriteBoundary(pfd, p);
 #endif
-  for (const auto& s: field.swaths) {
-    auto ggp = node.append_child("GGP");
-    WriteSwath(ggp, s, ++swathId);
-  }
+  for (const auto& s: field.swaths)
+    WriteSwath(pfd, s, ++swathId);
 } // WriteField
-
-int FindCustId(const FarmDb& db, Customer* cust) {
-  for (auto iter = db.customers.begin(); iter != db.customers.end(); ++iter) {
-    if (iter->get() == cust)
-      return static_cast<int>(std::distance(db.customers.begin(), iter) + 1);
-  }
-  return 0;
-} // FindCustId;
-
-int FindFarmId(const FarmDb& db, Farm* farm) {
-  for (auto iter = db.farms.begin(); iter != db.farms.end(); ++iter) {
-    if (iter->get() == farm)
-      return static_cast<int>(std::distance(db.farms.begin(), iter) + 1);
-  }
-  return 0;
-} // FindFarmId;
 
 } // local
 
@@ -722,40 +690,58 @@ FarmDb ReadFarmDb(const XmlNode& node) {
   return db;
 } // ReadFarmDb
 
-void WriteFarmDb(XmlNode& node, const FarmDb& db) {
-  node.set_name(isoxml::Root);
-  for (const auto& [k, v]: db.otherAttr)
-    node.append_attribute(k) = v;
-  if (db.versionMajor < 0 || db.versionMinor < 0) {
-    auto msg = std::format("WriteFarmDb: invlid version: {}.{}",
-                           db.versionMajor, db.versionMinor);
+void FarmDb::writeXml(const std::filesystem::path& output) const {
+  auto doc = pugi::xml_document{};
+
+  auto decl = doc.prepend_child(pugi::node_declaration);
+  decl.append_attribute("version")  = "1.0";
+  decl.append_attribute("encoding") = "utf-8";
+  auto root = doc.append_child(isoxml::Root);
+  for (const auto& [k, v]: otherAttr)
+    root.append_attribute(k) = v;
+  if (versionMajor < 0 || versionMinor < 0) {
+    auto msg = std::format("WriteFarmDb: invalid version: {}.{}",
+                           versionMajor, versionMinor);
     throw std::runtime_error{msg};
   }
-  node.append_attribute(isoxml::root_attr::VersionMajor) = db.versionMajor;
-  node.append_attribute(isoxml::root_attr::VersionMinor) = db.versionMinor;
-  node.append_attribute(isoxml::root_attr::MgmtSoftwareManufacturer) =
-                                                           db.swVendor;
-  node.append_attribute(isoxml::root_attr::MgmtSoftwareVersion) =
-                                                           db.swVersion;
-  if (db.dataTransferOrigin != -1) {
-    node.append_attribute(isoxml::root_attr::DataTransferOrigin) =
-                                                          db.dataTransferOrigin;
+  root.append_attribute(isoxml::root_attr::VersionMajor) = versionMajor;
+  root.append_attribute(isoxml::root_attr::VersionMinor) = versionMinor;
+  root.append_attribute(isoxml::root_attr::MgmtSoftwareManufacturer) =
+                                                           swVendor;
+  root.append_attribute(isoxml::root_attr::MgmtSoftwareVersion) =
+                                                           swVersion;
+  if (dataTransferOrigin != -1) {
+    root.append_attribute(isoxml::root_attr::DataTransferOrigin) =
+                                                          dataTransferOrigin;
   }
-  for (int i = 0; i != std::ssize(db.customers); ++i) {
-    auto ctr = node.append_child("CTR");
-    WriteCustomer(ctr, *db.customers[i], i+1);
-  }
-  for (int i = 0; i != std::ssize(db.farms); ++i) {
-    const auto& farm = *db.farms[i];
-    auto frm = node.append_child("FRM");
-    WriteFarm(frm, farm, i+1, FindCustId(db, farm.customer));
+
+  auto findCustId = [this](const Customer* cust) -> int {
+    for (auto iter = customers.cbegin(); iter != customers.cend(); ++iter) {
+      if (iter->get() == cust)
+        return static_cast<int>(std::distance(customers.cbegin(), iter) + 1);
+    }
+    return 0;
+  };
+
+  auto findFarmId = [this](const Farm* farm) -> int {
+    for (auto iter = farms.cbegin(); iter != farms.cend(); ++iter) {
+      if (iter->get() == farm)
+        return static_cast<int>(std::distance(farms.cbegin(), iter) + 1);
+    }
+    return 0;
+  };
+
+  for (int i = 0; i != std::ssize(customers); ++i)
+    WriteCustomer(root, *customers[i], i+1);
+  for (int i = 0; i != std::ssize(farms); ++i) {
+    const auto& farm = *farms[i];
+    WriteFarm(root, farm, i+1, findCustId(farm.customer));
   }
   int swathId = 0;
-  for (int i = 0; i != std::ssize(db.fields); ++i) {
-    const auto& field = *db.fields[i];
-    auto pfd = node.append_child("PFD");
-    WriteField(pfd, field, i+1,
-           FindCustId(db, field.customer), FindFarmId(db, field.farm), swathId);
+  for (int i = 0; i != std::ssize(fields); ++i) {
+    const auto& field = *fields[i];
+    WriteField(root, field, i+1,
+               findCustId(field.customer), findFarmId(field.farm), swathId);
   }
   struct Value {
     int offset;
@@ -776,15 +762,17 @@ void WriteFarmDb(XmlNode& node, const FarmDb& db) {
   }}; // Values
   for (int i = 0; i != std::ssize(Values); ++i) {
     const auto& value = Values[i];
-    auto c = node.append_child("VPN");
-    c.set_name("VPN");
-    c.append_attribute("A") = "VPN" + std::to_string(i+1);
-    c.append_attribute("B") = value.offset;
-    c.append_attribute("C") = value.scale;
-    c.append_attribute("D") = value.digits;
-    c.append_attribute("E") = value.units;
+    auto vpn = root.append_child("VPN");
+    vpn.append_attribute("A") = "VPN" + std::to_string(i+1);
+    vpn.append_attribute("B") = value.offset;
+    vpn.append_attribute("C") = value.scale;
+    vpn.append_attribute("D") = value.digits;
+    vpn.append_attribute("E") = value.units;
   }
-} // WriteFarmDb
+
+  if (!doc.save_file(output.c_str(), "  "))
+    throw std::runtime_error{"Error writing '" + output.generic_string() + "'"};
+} // writeXml
 
 } // farm_db
 

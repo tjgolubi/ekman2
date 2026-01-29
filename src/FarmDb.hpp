@@ -11,6 +11,7 @@
 #include <mp-units/systems/si.h>
 #include <mp-units/framework/quantity.h>
 
+#include <filesystem>
 #include <string>
 #include <vector>
 #include <string_view>
@@ -155,10 +156,10 @@ struct FarmDb {
   std::vector<Attribute> otherAttr;
   FarmDb() = default;
   void inset(geom::Distance dist);
+  void writeXml(const std::filesystem::path& output) const;
 }; // FarmDb
 
 FarmDb ReadFarmDb(const pugi::xml_node&);
-void WriteFarmDb(pugi::xml_node&, const FarmDb& db);
 
 } // farm_db
 

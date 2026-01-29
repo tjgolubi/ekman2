@@ -128,17 +128,7 @@ int main(int argc, const char* argv[]) {
 #endif
 
     db.inset(inset);
-
-    auto doc2 = pugi::xml_document{};
-    auto decl = doc2.prepend_child(pugi::node_declaration);
-    decl.append_attribute("version")  = "1.0";
-    decl.append_attribute("encoding") = "utf-8";
-    auto root2 = doc2.append_child(RootName);
-    WriteFarmDb(root2, db);
-
-    auto ok = doc2.save_file(output.c_str(), "  ");
-    if (!ok)
-      throw std::runtime_error{"Error writing '" + opts->outputPath + "'"};
+    db.writeXml(output);
     return 0;
   }
   catch (std::exception& x) {
