@@ -19,12 +19,18 @@ void FarmDb::writeWkt(const std::filesystem::path& output) const {
                        + output.generic_string() + "'"};
   }
   for (const auto& field: fields) {
-#if 0
-    for (const auto& part:  field->parts)
-      os << field->name << "\tBoundary\t" << ggl::wkt(Geo(part)) << '\n';
-#endif
-    for (const auto& swath: field->swaths)
-      os << field->name << "\tSwath\t" << ggl::wkt(Geo(swath.path)) << '\n';
+    int p = 0;
+    auto useSuffix = (field->parts.size() > 1);
+    for (const auto& part:  field->parts) {
+      auto partName = std::string{"Boundary"};
+      if (useSuffix) partName += " F" + std::to_string(++p);
+      os << field->name << '\t' << partName
+         << '\t' << ggl::wkt(Geo(part)) << '\n';
+    }
+    for (const auto& swath: field->swaths) {
+      os << field->name << '\t' << swath.name
+         << '\t' << ggl::wkt(Geo(swath.path)) << '\n';
+    }
   }
 } // FarmDb::writeWkt
 
