@@ -15,10 +15,11 @@
 #include <cstdlib>
 
 namespace po = boost::program_options;
+namespace fs = std::filesystem;
 
 struct Options {
-  std::string inputPath = "TASKDATA.XML";
-  std::string outputPath;
+  fs::path inputPath = "TASKDATA.XML";
+  fs::path outputPath;
   double insetFt = 0.0;
 }; // Options
 
@@ -29,11 +30,11 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
   desc.add_options()
     ("help,h", "Show help.")
     ("input,i",
-      po::value<std::string>(&opts.inputPath)->default_value("TASKDATA.XML"),
+      po::value<fs::path>(&opts.inputPath)->default_value("TASKDATA.XML"),
       "Input ISO11783 file (default: TASKDATA.XML).")
     ("inset,d", po::value<double>(&opts.insetFt)->required(),
       "Inset distance in feet (required).")
-    ("output,o", po::value<std::string>(&opts.outputPath)->required(),
+    ("output,o", po::value<fs::path>(&opts.outputPath)->required(),
       "Output file path (required).");
 
   auto positional = po::positional_options_description{};
@@ -55,6 +56,9 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
         << "  InsetXml [options] <inset_feet> <output>\n\n"
         << desc
         << "\n\n"
+        << "The input  file extension must be .xml.\n"
+        << "The output file extension must be either .xml or .wkt.\n"
+        << "\n"
         << "Examples:\n"
         << "  InsetXml 12.5 out_TASKDATA.xml\n"
         << "  InsetXml -i TASKDATA.XML 12.5 out_TASKDATA.xml\n"
@@ -74,13 +78,25 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
     std::exit(2);
   }
 
-  if (opts.insetFt <= 0.0) {
-    std::cerr << "Error: inset distance must be > 0.\n";
+  if (opts.insetFt <= 0.5) {
+    std::cerr << "Error: inset distance must be > 0.5 ft.\n";
     std::exit(2);
   }
 
   if (opts.outputPath == opts.inputPath) {
     std::cerr << "Error: output file must be different than input file.\n";
+    std::exit(2);
+  }
+
+  auto ext = opts.inputPath.extension();
+  if (ext != ".xml" && ext != ".XML") {
+    std::cerr << "Error: input file extension must be .xml or .XML\n";
+    std::exit(2);
+  }
+
+  ext = opts.outputPath.extension();
+  if (ext != ".xml" && ext != ".XML" && ext != ".wkt" && ext != ".WKT") {
+    std::cerr << "Error: output file extension must be .xml or .wkt\n";
     std::exit(2);
   }
 
@@ -93,13 +109,9 @@ int main(int argc, const char* argv[]) {
 
     const auto opts = ParseArgs(argc, argv);
     if (!opts)
-      return 0;
+      return 1;
 
-    auto input  = std::filesystem::path{opts->inputPath};
-    auto output = std::filesystem::path{opts->outputPath};
-    auto inset  = opts->insetFt * mp_units::yard_pound::foot;
-
-    auto db = farm_db::FarmDb::ReadXml(input);
+    auto db = farm_db::FarmDb::ReadXml(opts->inputPath);
     std::cout << db.customers.size() << " customers\n"
               << db.farms.size()     << " farms\n"
               << db.fields.size()    << " fields\n";
@@ -109,8 +121,13 @@ int main(int argc, const char* argv[]) {
     db.swVersion = "0.1 (alpha)";
 #endif
 
-    db.inset(inset);
-    db.writeXml(output);
+    if (opts->insetFt != 0.0)
+      db.inset(opts->insetFt * mp_units::yard_pound::foot);
+    const auto ext = opts->outputPath.extension();
+    if (ext == ".wkt" || ext == ".WKT")
+      db.writeWkt(opts->outputPath);
+    else
+      db.writeXml(opts->outputPath);
     return 0;
   }
   catch (std::exception& x) {

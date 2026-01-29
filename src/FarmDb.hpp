@@ -153,6 +153,7 @@ struct FarmDb {
   FarmDb() = default;
   void inset(geom::Distance dist);
   void writeXml(const std::filesystem::path& output) const;
+  void writeWkt(const std::filesystem::path& output) const;
   static FarmDb ReadXml(const std::filesystem::path& input);
 }; // FarmDb
 
