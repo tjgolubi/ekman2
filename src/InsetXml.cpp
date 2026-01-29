@@ -89,6 +89,8 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
 
 int main(int argc, const char* argv[]) {
   try {
+    std::cout << "InsetXml v0.0 built on " __DATE__ " " __TIME__ << '\n';
+
     const auto opts = ParseArgs(argc, argv);
     if (!opts)
       return 0;
