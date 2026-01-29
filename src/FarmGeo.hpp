@@ -80,6 +80,7 @@ constexpr LatLon MakePoint(const geo::Point& pt) noexcept { return pt; }
 
 geo::Ring MakeGeoRing(const Ring& ring);
 geo::Hole MakeGeoHole(const Ring& ring);
+Polygon MakePolygon(const geo::Polygon& poly);
 
 constexpr Path MakePath(const geo::Path& path) noexcept { return Path{path}; }
 constexpr Path MakePath(const geo::Ring& ring) noexcept { return Path{ring}; }

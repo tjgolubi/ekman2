@@ -691,6 +691,7 @@ FarmDb FarmDb::ReadXml(const std::filesystem::path& input) {
         else if (k == "GGP") field->swaths.emplace_back(ReadSwath(p));
         else std::cerr << "ReadFarmDb: ignored field element " << k << '\n';
       }
+      field->sortByArea();
       auto ptr = field.get();
       fieldDb.push_back(id);
       db.fields.emplace_back(std::move(field));

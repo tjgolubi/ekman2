@@ -121,6 +121,7 @@ struct Field {
   Field() = default;
   explicit Field(std::string_view name_) : name{name_} { }
   void inset(const std::string& name, geom::Distance dist);
+  void sortByArea();
 }; // Field
 
 struct Farm {
