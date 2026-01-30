@@ -15,62 +15,35 @@
 
 namespace farm_db {
 
-geo::Ring MakeGeoRing(const Path& path) {
-  auto out = geo::Ring{path.begin(), path.end()};
+namespace geo {
+
+Path MakePath(const std::vector<LatLon>& pts)
+  { return Path{pts.begin(), pts.end()}; }
+
+Ring MakeRing(const std::vector<LatLon>& pts) {
+  auto out = Ring{pts.begin(), pts.end()};
   ggl::correct(out);
   auto msg = std::string{};
   if (!ggl::is_valid(out, msg))
     throw std::runtime_error{"MakeGeoRing: not a ring: " + msg};
   return out;
-} // MakeGeoRing
+} // MakeRing
 
-geo::Hole MakeGeoHole(const Path& path) {
-  auto out = geo::Hole{path.begin(), path.end()};
+Hole MakeHole(const std::vector<LatLon>& pts) {
+  auto out = Hole{pts.begin(), pts.end()};
   ggl::correct(out);
   auto msg = std::string{};
   if (!ggl::is_valid(out, msg))
-    throw std::runtime_error{"MakeGeoHole: not a hole: " + msg};
+    throw std::runtime_error{"MakeHole: not a hole: " + msg};
   return out;
-} // MakeGeoHole
+} // MakeHole
 
-geo::Polygon Geo(const Polygon& poly) {
-  auto out = geo::Polygon{};
-  out.outer() = MakeGeoRing(poly.outer);
-  for (const auto& p: poly.inners)
-    out.inners().push_back(MakeGeoRing(p));
-  ggl::correct(out);
-  auto msg = std::string{};
-  if (!ggl::is_valid(out, msg))
-    throw std::runtime_error{"Geo(Polygon): invalid polygon: " + msg};
-  return out;
-} // Geo(Polygon)
-
-Polygon MakePolygon(const geo::Polygon& geoPoly) {
-  {
-    auto msg = std::string{};
-    if (!ggl::is_valid(geoPoly, msg))
-      throw std::runtime_error{"MakePolygon: invalid polygon: " + msg};
-  }
-  auto poly = Polygon{};
-  poly.outer = MakeRing(geoPoly.outer());
-  for (const auto& p: geoPoly.inners())
-    poly.inners.push_back(MakeRing(p));
-  return poly;
-} // MakePolygon
+} // geo
 
 void Field::sortByArea() {
-  auto geoParts = std::vector<geo::Polygon>{};
-  geoParts.reserve(parts.size());
-  for (const auto& p: parts)
-    geoParts.emplace_back(Geo(p));
-  std::ranges::sort(geoParts, [](const geo::Polygon& a, const geo::Polygon& b) {
+  std::ranges::sort(parts, [](const geo::Polygon& a, const geo::Polygon& b) {
     return (ggl::area(a) > ggl::area(b));
   });
-  auto p2 = std::vector<Polygon>{};
-  p2.reserve(geoParts.size());
-  for (const auto& p: geoParts)
-    p2.emplace_back(MakePolygon(p));
-  parts = std::move(p2);
 } // Field::areaSort
 
 } // farm_db

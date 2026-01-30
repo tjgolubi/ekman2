@@ -25,11 +25,11 @@ void FarmDb::writeWkt(const std::filesystem::path& output) const {
       auto partName = std::string{"Boundary"};
       if (useSuffix) partName += " F" + std::to_string(++p);
       os << field->name << '\t' << partName
-         << '\t' << ggl::wkt(Geo(part)) << '\n';
+         << '\t' << ggl::wkt(part) << '\n';
     }
     for (const auto& swath: field->swaths) {
       os << field->name << '\t' << swath.name
-         << '\t' << ggl::wkt(Geo(swath.path)) << '\n';
+         << '\t' << ggl::wkt(swath.path) << '\n';
     }
   }
 } // FarmDb::writeWkt

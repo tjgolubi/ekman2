@@ -64,13 +64,13 @@ const char* Name(Swath::Method x) noexcept {
   }
 } // Name(Swath::Method)
 
-void Field::inset(const std::string& name, Distance dist) {
+void Field::inset(const std::string& insetName, Distance dist) {
   swaths.clear();
   int f = 0;
   int i = 0;
   for (const auto& part: parts) {
-    auto geoPolys = farm_db::BoundarySwaths(farm_db::Geo(part), dist);
-    auto partName = name;
+    auto geoPolys = farm_db::BoundarySwaths(part, dist);
+    auto partName = insetName;
     if (++f != 1)
       partName += " F" + std::to_string(f);
     int n = 0;
@@ -80,19 +80,19 @@ void Field::inset(const std::string& name, Distance dist) {
       if (useSuffix)
         swathName += "_" + std::to_string(++n);
       auto& swath = swaths.emplace_back(swathName);
-      swath.path = farm_db::MakePath(geoPoly.outer());
+      swath.path = geo::MakePath(geoPoly.outer());
       for (const auto& geoRing: geoPoly.inners()) {
-        auto innerName = std::format("{} I{}", name , ++i);
+        auto innerName = std::format("{} I{}", insetName , ++i);
         auto& swath2 = swaths.emplace_back(innerName);
-        swath2.path = farm_db::MakePath(geoRing);
+        swath2.path = geo::MakePath(geoRing);
       }
     }
   }
 } // inset
 
-void FarmDb::inset(const std::string& name, Distance dist) {
+void FarmDb::inset(const std::string& insetName, Distance dist) {
   for (auto& field: fields)
-    field->inset(name, dist);
+    field->inset(insetName, dist);
 } // inset
 
 } // farm_db

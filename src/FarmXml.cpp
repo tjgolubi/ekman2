@@ -1,4 +1,5 @@
 #include "FarmDb.hpp"
+#include "FarmGeo.hpp"
 
 #include "get_attr.hpp"
 
@@ -7,6 +8,9 @@
 #include <zip.h>
 
 #include <gsl-lite/gsl-lite.hpp>
+
+#include <boost/geometry/algorithms/is_valid.hpp>
+#include <boost/geometry/algorithms/correct.hpp>
 
 #include <regex>
 #include <string>
@@ -225,43 +229,66 @@ void WritePoint(XmlNode& node, const LatLon& pt, isoxml::PointType type) {
   pnt.append_attribute("D") = pt.longitude.numerical_value_in(deg);
 } // WritePoint
 
-Path ReadPath(const XmlNode& x, isoxml::PointType expPtType) {
-  gsl_Expects(tjg::name(x) == "LSG");
-  for (const auto& a: x.attributes()) {
+void ReadPoints(std::vector<LatLon>& pts,
+                    const XmlNode& node, isoxml::PointType expPtType)
+{
+  gsl_Expects(tjg::name(node) == "LSG");
+  for (const auto& a: node.attributes()) {
     auto k = tjg::name(a);
     if (k == "A")
       continue;
-    std::cerr << "ReadPath: extra attribute ignored: " << k << '\n';
+    std::cerr << "ReadPoints: extra attribute ignored: " << k << '\n';
   }
-  auto pts = Path{};
-  pts.reserve(std::distance(x.begin(), x.end()));
-  for (const auto& c: x.children()) {
+  pts.reserve(std::distance(node.begin(), node.end()));
+  for (const auto& c: node.children()) {
     if (c.type() != pugi::node_element)
       continue;
     auto k = tjg::name(c);
     if (k != "PNT") {
-      std::cerr << "ReadPath: element ignored: " <<  k << '\n';
+      std::cerr << "ReadPoints: element ignored: " <<  k << '\n';
       continue;
     }
     auto pt = ReadPoint(c);
     if (pt.type != expPtType) {
-      auto msg = std::string{"ReadPath: expected "} + Name(expPtType) + ": got "
-                 + Name(pt.type);
+      auto msg = std::string{"ReadPoints: expected "} + Name(expPtType)
+               + ": got " + Name(pt.type);
       throw std::runtime_error{msg};
     }
     pts.push_back(pt.point);
   }
-  return pts;
-} // ReadPath
+} // ReadPoints
 
-void WritePath(XmlNode& node, const Path& path, isoxml::LineStringType lsgType,
-                                                isoxml::PointType ptType)
+void WritePoints(XmlNode& node, const std::vector<LatLon>& pts,
+                 isoxml::LineStringType lsgType, isoxml::PointType ptType)
 {
   auto lsg = node.append_child("LSG");
   lsg.append_attribute("A") = static_cast<int>(lsgType);
-  for (const auto& p: path)
+  for (const auto& p: pts)
     WritePoint(lsg, p, ptType);
-} // WritePath
+} // WritePoints
+
+[[maybe_unused]]
+Path ReadPath(const XmlNode& node, isoxml::PointType expPtType) {
+  auto pts = Path{};
+  ReadPoints(pts, node, expPtType);
+  return pts;
+} // ReadPath
+
+[[maybe_unused]]
+void WritePath(XmlNode& node, const Path& path, isoxml::LineStringType lsgType,
+                                                isoxml::PointType ptType)
+  { WritePoints(node, path, lsgType, ptType); }
+
+geo::Ring ReadRing(const XmlNode& node, isoxml::PointType expPtType) {
+  auto ring = geo::Ring{};
+  ReadPoints(ring, node, expPtType);
+  ggl::correct(ring);
+  return ring;
+} // ReadRing
+
+void WriteRing(XmlNode& node, const geo::Ring& ring,
+               isoxml::LineStringType lsgType, isoxml::PointType ptType)
+  { WritePoints(node, ring, lsgType, ptType); }
 
 Path ReadSwathPath(const XmlNode& x) {
   using namespace isoxml;
@@ -331,17 +358,17 @@ Polygon ReadPolygon(const XmlNode& x, isoxml::PolygonType polyType,
     throw std::runtime_error{"ReadPolygon: invalid type"};
   Polygon poly;
   for (const auto& lsg: x.children("LSG")) {
-    auto ring = ReadPath(lsg, ptType);
+    auto ring = ReadRing(lsg, ptType);
     auto lsgType = RequireAttr<isoxml::LineStringType>(lsg, "A");
     using namespace isoxml;
     switch (lsgType) {
       case LineStringType::Exterior:
-        if (!poly.outer.empty())
+        if (!poly.outer().empty())
           throw std::runtime_error{"Polygon: multiple exterior rings"};
-        poly.outer = std::move(ring);
+        poly.outer() = geo::Ring{ring};
         break;
       case LineStringType::Interior:
-        poly.inners.emplace_back(std::move(ring));
+        poly.inners().emplace_back(std::move(ring));
         break;
       default: {
         auto msg = std::string{"ReadPolygon: unexpected LineString type: "}
@@ -358,14 +385,15 @@ Polygon ReadPolygon(const XmlNode& x, isoxml::PolygonType polyType,
       continue;
     std::cerr << "ReadPolygon: element ignored: " << k << '\n';
   }
-  if (poly.outer.empty())
+  if (poly.outer().empty())
     throw std::runtime_error{"ReadPolygon: missing exterior ring"};
-  if (std::ssize(poly.outer) < 4)
+  if (std::ssize(poly.outer()) < 4)
     throw std::runtime_error{"ReadPolygon: exterior ring too small"};
-  for (const auto& r: poly.inners) {
+  for (const auto& r: poly.inners()) {
     if (std::ssize(r) < 4)
       throw std::runtime_error{"ReadPolygon: interior ring too small"};
   }
+  ggl::correct(poly);
   return poly;
 } // ReadPolygon
 
@@ -380,9 +408,9 @@ void WritePolygon(XmlNode& node, const Polygon& poly,
   using namespace isoxml;
   auto pln = node.append_child("PLN");
   pln.append_attribute("A") = static_cast<int>(polyType);
-  WritePath(pln, poly.outer, LineStringType::Exterior, ptType);
-  for (const auto& path: poly.inners)
-    WritePath(pln, path, LineStringType::Interior, ptType);
+  WriteRing(pln, poly.outer(), LineStringType::Exterior, ptType);
+  for (const auto& path: poly.inners())
+    WriteRing(pln, path, LineStringType::Interior, ptType);
 } // WritePolygon
 
 void WriteBoundary(XmlNode& node, const Polygon& poly) {
