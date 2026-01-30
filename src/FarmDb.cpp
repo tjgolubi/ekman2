@@ -64,7 +64,7 @@ const char* Name(Swath::Method x) noexcept {
   }
 } // Name(Swath::Method)
 
-void Field::inset(const std::string& name, geom::Distance dist) {
+void Field::inset(const std::string& name, Distance dist) {
   swaths.clear();
   int f = 0;
   int i = 0;
@@ -90,7 +90,7 @@ void Field::inset(const std::string& name, geom::Distance dist) {
   }
 } // inset
 
-void FarmDb::inset(const std::string& name, geom::Distance dist) {
+void FarmDb::inset(const std::string& name, Distance dist) {
   for (auto& field: fields)
     field->inset(name, dist);
 } // inset

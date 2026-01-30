@@ -5,7 +5,6 @@
 #pragma once
 
 #include "enum_help.hpp"
-#include "geom.hpp"
 
 #include <mp-units/systems/isq/space_and_time.h>
 #include <mp-units/systems/si.h>
@@ -38,6 +37,8 @@ constexpr struct longitude final
 using HdgDeg = mp_units::quantity<units::heading  [units::deg]>;
 using LatDeg = mp_units::quantity<units::latitude [units::deg]>;
 using LonDeg = mp_units::quantity<units::longitude[units::deg]>;
+using Distance =
+              mp_units::quantity<mp_units::isq::distance[mp_units::si::metre]>;
 
 struct LatLon {
   LatDeg latitude;
@@ -120,7 +121,7 @@ struct Field {
   std::vector<Attribute> otherAttr;
   Field() = default;
   explicit Field(std::string_view name_) : name{name_} { }
-  void inset(const std::string& name, geom::Distance dist);
+  void inset(const std::string& name, Distance dist);
   void sortByArea();
 }; // Field
 
@@ -152,7 +153,7 @@ struct FarmDb {
   std::vector<std::unique_ptr<Field>>    fields;
   std::vector<Attribute> otherAttr;
   FarmDb() = default;
-  void inset(const std::string& name, geom::Distance dist);
+  void inset(const std::string& name, Distance dist);
   void writeXml(const std::filesystem::path& output) const;
   void writeWkt(const std::filesystem::path& output) const;
   static FarmDb ReadXml(const std::filesystem::path& input);
