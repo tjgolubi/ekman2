@@ -92,14 +92,16 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
   }
 
   auto ext = opts.inputPath.extension();
-  if (ext != ".xml" && ext != ".XML") {
-    std::cerr << "Error: input file extension must be .xml or .XML\n";
+  if (ext != ".xml" && ext != ".XML" && ext != ".zip") {
+    std::cerr << "Error: input file extension must be .xml or .zip\n";
     std::exit(2);
   }
 
   ext = opts.outputPath.extension();
-  if (ext != ".xml" && ext != ".XML" && ext != ".wkt" && ext != ".WKT") {
-    std::cerr << "Error: output file extension must be .xml or .wkt\n";
+  if (ext != ".xml" && ext != ".XML" && ext != ".wkt" && ext != ".WKT"
+       && ext != ".zip")
+  {
+    std::cerr << "Error: output file extension must be .xml, .wkt, or .zip\n";
     std::exit(2);
   }
 

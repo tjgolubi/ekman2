@@ -30,6 +30,10 @@ INCLUDE:=$(PROJDIR)
 # Must use "=" because $A Will be defined below.
 LIBS=$(XML)/build/libpugixml.$A
 
+LDLIBS+= -lboost_program_options-mt
+LDLIBS+= -lzip -ladvapi32 -lbz2 -llzma -lzstd -lbcrypt -lz
+CDEFS+= -DZIP_STATIC
+
 #DEBUG=1
 
 SHELL:=/bin/bash
@@ -39,13 +43,9 @@ SHELL:=/bin/bash
 include $(SWDEV)/$(COMPILER).mk
 include $(SWDEV)/build.mk
 
-LDLIBS=-lboost_program_options-mt
-
 .PHONY: all clean scour
 
 all: depend $(TARGETS)
 
 $(TGT1): $(OBJ1) $(LIBS)
-        $(LINK)
-
-
+	$(LINK)

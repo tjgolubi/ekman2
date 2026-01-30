@@ -4,6 +4,8 @@
 
 #include <pugixml.hpp>
 
+#include <zip.h>
+
 #include <gsl-lite/gsl-lite.hpp>
 
 #include <regex>
@@ -11,6 +13,7 @@
 #include <vector>
 #include <string_view>
 #include <format>
+#include <sstream>
 #include <iostream>
 #include <iomanip>
 #include <stdexcept>
@@ -704,56 +707,59 @@ FarmDb FarmDb::ReadXml(const std::filesystem::path& input) {
   return db;
 } // FarmDb::ReadXml
 
-void FarmDb::writeXml(const std::filesystem::path& output) const {
+namespace {
+
+pugi::xml_document CreateDoc(const FarmDb& db) {
   auto doc = pugi::xml_document{};
 
   auto decl = doc.prepend_child(pugi::node_declaration);
   decl.append_attribute("version")  = "1.0";
   decl.append_attribute("encoding") = "utf-8";
   auto root = doc.append_child(isoxml::Root);
-  for (const auto& [k, v]: otherAttr)
+  for (const auto& [k, v]: db.otherAttr)
     root.append_attribute(k) = v;
-  if (versionMajor < 0 || versionMinor < 0) {
+  if (db.versionMajor < 0 || db.versionMinor < 0) {
     auto msg = std::format("WriteFarmDb: invalid version: {}.{}",
-                           versionMajor, versionMinor);
+                           db.versionMajor, db.versionMinor);
     throw std::runtime_error{msg};
   }
-  root.append_attribute(isoxml::root_attr::VersionMajor) = versionMajor;
-  root.append_attribute(isoxml::root_attr::VersionMinor) = versionMinor;
+  root.append_attribute(isoxml::root_attr::VersionMajor) = db.versionMajor;
+  root.append_attribute(isoxml::root_attr::VersionMinor) = db.versionMinor;
   root.append_attribute(isoxml::root_attr::MgmtSoftwareManufacturer) =
-                                                           swVendor;
+                                                           db.swVendor;
   root.append_attribute(isoxml::root_attr::MgmtSoftwareVersion) =
-                                                           swVersion;
-  if (dataTransferOrigin != -1) {
+                                                           db.swVersion;
+  if (db.dataTransferOrigin != -1) {
     root.append_attribute(isoxml::root_attr::DataTransferOrigin) =
-                                                          dataTransferOrigin;
+                                                          db.dataTransferOrigin;
   }
 
-  auto findCustId = [this](const Customer* cust) -> int {
-    for (auto iter = customers.cbegin(); iter != customers.cend(); ++iter) {
+  auto findCustId = [&](const Customer* cust) -> int {
+    for (auto iter = db.customers.cbegin(); iter != db.customers.cend(); ++iter)
+    {
       if (iter->get() == cust)
-        return static_cast<int>(std::distance(customers.cbegin(), iter) + 1);
+        return static_cast<int>(std::distance(db.customers.cbegin(), iter) + 1);
     }
     return 0;
   };
 
-  auto findFarmId = [this](const Farm* farm) -> int {
-    for (auto iter = farms.cbegin(); iter != farms.cend(); ++iter) {
+  auto findFarmId = [&](const Farm* farm) -> int {
+    for (auto iter = db.farms.cbegin(); iter != db.farms.cend(); ++iter) {
       if (iter->get() == farm)
-        return static_cast<int>(std::distance(farms.cbegin(), iter) + 1);
+        return static_cast<int>(std::distance(db.farms.cbegin(), iter) + 1);
     }
     return 0;
   };
 
-  for (int i = 0; i != std::ssize(customers); ++i)
-    WriteCustomer(root, *customers[i], i+1);
-  for (int i = 0; i != std::ssize(farms); ++i) {
-    const auto& farm = *farms[i];
+  for (int i = 0; i != std::ssize(db.customers); ++i)
+    WriteCustomer(root, *db.customers[i], i+1);
+  for (int i = 0; i != std::ssize(db.farms); ++i) {
+    const auto& farm = *db.farms[i];
     WriteFarm(root, farm, i+1, findCustId(farm.customer));
   }
   int swathId = 0;
-  for (int i = 0; i != std::ssize(fields); ++i) {
-    const auto& field = *fields[i];
+  for (int i = 0; i != std::ssize(db.fields); ++i) {
+    const auto& field = *db.fields[i];
     WriteField(root, field, i+1,
                findCustId(field.customer), findFarmId(field.farm), swathId);
   }
@@ -784,8 +790,59 @@ void FarmDb::writeXml(const std::filesystem::path& output) const {
     vpn.append_attribute("E") = value.units;
   }
 
-  if (!doc.save_file(output.c_str(), "  "))
-    throw std::runtime_error{"Error writing '" + output.generic_string() + "'"};
+  return doc;
+} // CreateDoc
+
+bool WriteZip(const std::filesystem::path& zipPath, const std::string& xml) {
+  auto err = 0;
+  auto* zip = zip_open(zipPath.generic_string().c_str(), ZIP_CREATE | ZIP_TRUNCATE, &err);
+  if (!zip)
+    return false;
+
+  auto* src = zip_source_buffer(zip, xml.data(), xml.size(), 0);
+  if (!src) {
+    zip_discard(zip);
+    return false;
+  }
+
+  constexpr auto name = "TASKDATA/TASKDATA.XML";
+  if (zip_file_add(zip, name, src, ZIP_FL_OVERWRITE) < 0) {
+    zip_source_free(src);  // Only free on failure; on success zip owns src.
+    zip_discard(zip);
+    return false;
+  }
+
+  if (zip_close(zip) < 0) {  // Commits/writes the archive.
+    zip_discard(zip);
+    return false;
+  }
+  return true;
+} // WriteZip
+
+} // local
+
+void FarmDb::writeXml(const std::filesystem::path& output) const {
+  auto doc = CreateDoc(*this);
+  auto ext = output.extension();
+  if (ext == ".xml" || ext == ".XML") {
+    if (doc.save_file(output.c_str(), "  "))
+      return;
+  }
+  else if (ext == ".zip") {
+    auto os = std::ostringstream{};
+    if (os) {
+      doc.save(os, "  ");
+      if (WriteZip(output, os.str()))
+        return;
+    }
+  }
+  else {
+    auto msg = std::string{"FarmDb::writeXml: invalid filename extension: "}
+             + output.generic_string();
+    throw std::runtime_error{msg};
+  }
+  auto msg =std::string{"error writing '"} + output.generic_string() + "'";
+  throw std::runtime_error{"FarmDb::writeXml:" + msg};
 } // writeXml
 
 } // farm_db
