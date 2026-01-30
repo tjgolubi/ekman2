@@ -547,12 +547,57 @@ void WriteField(XmlNode& node, const Field& field, int id,
     WriteSwath(pfd, s, ++swathId);
 } // WriteField
 
+pugi::xml_document ReadZip(const std::filesystem::path& zipPath) {
+  auto err = 0;
+  auto* zip = zip_open(zipPath.generic_string().c_str(), ZIP_RDONLY, &err);
+  if (!zip)
+    throw std::runtime_error("zip_open failed");
+
+  constexpr auto name = "TASKDATA/TASKDATA.XML";
+
+  auto* zf = zip_fopen(zip, name, 0);
+  if (!zf) {
+    zip_close(zip);
+    throw std::runtime_error("zip_fopen failed");
+  }
+
+  std::string str;
+  str.reserve(static_cast<std::size_t>(file_size(zipPath)));
+  std::vector<char> buf(8192);
+
+  for (;;) {
+    auto n = zip_fread(zf, buf.data(), buf.size());
+    if (n < 0) {
+      zip_fclose(zf);
+      zip_close(zip);
+      throw std::runtime_error("zip_fread failed");
+    }
+    if (n == 0) break;
+    str.append(buf.data(), static_cast<std::size_t>(n));
+  }
+
+  zip_fclose(zf);
+  zip_close(zip);
+
+  auto iss = std::istringstream(str);
+  auto doc = pugi::xml_document{};
+  auto res = doc.load(iss, pugi::parse_default | pugi::parse_ws_pcdata);
+  if (!res) {
+    auto msg = std::format("{}: XML parse error: {} (offset {})",
+                           name, res.description(), res.offset);
+    throw std::runtime_error{msg};
+  }
+  return doc;
+} // ReadZip
+
 } // local
 
 FarmDb FarmDb::ReadXml(const std::filesystem::path& input) {
   auto doc = pugi::xml_document{};
 
-  {
+  auto ext = input.extension();
+
+  if (ext == ".xml" || ext == ".XML") {
     auto res = doc.load_file(input.c_str(),
                              pugi::parse_default | pugi::parse_ws_pcdata);
     if (!res) {
@@ -560,6 +605,14 @@ FarmDb FarmDb::ReadXml(const std::filesystem::path& input) {
                          input.generic_string(), res.description(), res.offset);
       throw std::runtime_error{msg};
     }
+  }
+  else if (ext == ".zip") {
+    doc = ReadZip(input);
+  }
+  else {
+    auto msg = std::string{"FarmDb::ReadXml: invalid filename extension: "}
+             + input.generic_string();
+    throw std::runtime_error{msg};
   }
 
   auto root = doc.child(isoxml::Root);
@@ -795,7 +848,8 @@ pugi::xml_document CreateDoc(const FarmDb& db) {
 
 bool WriteZip(const std::filesystem::path& zipPath, const std::string& xml) {
   auto err = 0;
-  auto* zip = zip_open(zipPath.generic_string().c_str(), ZIP_CREATE | ZIP_TRUNCATE, &err);
+  auto* zip = zip_open(zipPath.generic_string().c_str(),
+                       ZIP_CREATE | ZIP_TRUNCATE, &err);
   if (!zip)
     return false;
 
