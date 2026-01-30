@@ -205,10 +205,12 @@ struct FarmDb {
   std::vector<std::unique_ptr<Field>>    fields;
   std::vector<Attribute> otherAttr;
   FarmDb() = default;
+  void print(std::ostream& os) const;
   void inset(const std::string& name, Distance dist);
   void writeXml(const std::filesystem::path& output) const;
   void writeWkt(const std::filesystem::path& output) const;
   static FarmDb ReadXml(const std::filesystem::path& input);
+  static FarmDb ReadShp(const std::filesystem::path& input);
 }; // FarmDb
 
 } // farm_db

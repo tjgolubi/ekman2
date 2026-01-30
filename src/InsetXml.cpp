@@ -59,8 +59,8 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
         << "  InsetXml [options] <inset_feet> <output>\n\n"
         << desc
         << "\n\n"
-        << "The input  file extension must be .xml.\n"
-        << "The output file extension must be either .xml or .wkt.\n"
+        << "The input  file extension must be .xml, .shp, or .zip.\n"
+        << "The output file extension must be either .xml, .wkt, or .zip.\n"
         << "\n"
         << "Examples:\n"
         << "  InsetXml 12.5 out_TASKDATA.xml\n"
@@ -92,8 +92,8 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
   }
 
   auto ext = opts.inputPath.extension();
-  if (ext != ".xml" && ext != ".XML" && ext != ".zip") {
-    std::cerr << "Error: input file extension must be .xml or .zip\n";
+  if (ext != ".xml" && ext != ".XML" && ext != ".shp" && ext != ".zip") {
+    std::cerr << "Error: input file extension must be .xml, .ext, or .zip\n";
     std::exit(2);
   }
 
@@ -116,10 +116,14 @@ int main(int argc, const char* argv[]) {
     if (!opts)
       return 1;
 
-    auto db = farm_db::FarmDb::ReadXml(opts->inputPath);
+    auto db = farm_db::FarmDb{};
+    if (opts->inputPath.extension() == ".shp")
+      db = farm_db::FarmDb::ReadShp(opts->inputPath);
+    else
+      db = farm_db::FarmDb::ReadXml(opts->inputPath);
     std::cout << db.customers.size() << " customers\n"
               << db.farms.size()     << " farms\n"
-              << db.fields.size()    << " fields\n";
+              << db.fields.size()    << " fields\n\n";
 
 #if 0
     db.swVendor  = "Terry Golubiewski";

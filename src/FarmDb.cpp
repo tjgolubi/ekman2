@@ -95,4 +95,23 @@ void FarmDb::inset(const std::string& insetName, Distance dist) {
     field->inset(insetName, dist);
 } // inset
 
+void FarmDb::print(std::ostream& os) const {
+  using namespace std;
+  os << "\nCustomers\n";
+  for (const auto& c: customers)
+    os << "  " << quoted(c->name) << '\n';
+  os << "\nFarms\n";
+  for (const auto& f: farms) {
+    os << left << "  " << setw(20) << quoted(f->customer->name)
+       << '\t' << quoted(f->name) << '\n';
+  }
+  os << "\nFields\n";
+  for (const auto& f: fields) {
+    os << left << "  " << setw(20) << quoted(f->customer->name)
+       << '\t' << setw(20) << quoted(f->farm->name)
+       << '\t' << setw(20) << quoted(f->name)
+       << "\tparts=" << f->parts.size() << '\n';
+  }
+} // print
+
 } // farm_db

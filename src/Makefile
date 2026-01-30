@@ -19,7 +19,7 @@ INSET_XML_E=InsetXml.$E
 TGT1=$(INSET_XML_E)
 TARGETS=$(TGT1)
 
-SRC1:=InsetXml.cpp FarmDb.cpp FarmXml.cpp FarmWkt.cpp FarmGeo.cpp BoundarySwaths.cpp
+SRC1:=InsetXml.cpp FarmDb.cpp FarmXml.cpp FarmWkt.cpp FarmShp.cpp FarmGeo.cpp BoundarySwaths.cpp
 SOURCE:=$(SRC1)
 
 #SYSINCL:=$(XML)/src $(BOOST) $(addsuffix /include, $(UNITS)/src/core $(UNITS)/src/systems $(GSL))
@@ -31,6 +31,7 @@ INCLUDE:=$(PROJDIR)
 LIBS=$(XML)/build/libpugixml.$A
 
 LDLIBS+= -lboost_program_options-mt
+LDLIBS+= -lshp
 LDLIBS+= -lzip -ladvapi32 -lbz2 -llzma -lzstd -lbcrypt -lz
 CDEFS+= -DZIP_STATIC
 
