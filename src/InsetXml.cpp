@@ -98,9 +98,7 @@ std::optional<Options> ParseArgs(int argc, const char* argv[]) {
   }
 
   ext = opts.outputPath.extension();
-  if (ext != ".xml" && ext != ".XML" && ext != ".wkt" && ext != ".WKT"
-       && ext != ".zip")
-  {
+  if (ext != ".xml" && ext != ".wkt" && ext != ".zip") {
     std::cerr << "Error: output file extension must be .xml, .wkt, or .zip\n";
     std::exit(2);
   }
@@ -117,10 +115,16 @@ int main(int argc, const char* argv[]) {
       return 1;
 
     auto db = farm_db::FarmDb{};
-    if (opts->inputPath.extension() == ".shp")
-      db = farm_db::FarmDb::ReadShp(opts->inputPath);
-    else
-      db = farm_db::FarmDb::ReadXml(opts->inputPath);
+    {
+      const auto ext = opts->inputPath.extension();
+      if (ext == ".shp")
+        db = farm_db::FarmDb::ReadShp(opts->inputPath);
+      else if (ext == ".zip")
+        db = farm_db::FarmDb::ReadZip(opts->inputPath);
+      else
+        db = farm_db::FarmDb::ReadXml(opts->inputPath);
+    }
+
     std::cout << db.customers.size() << " customers\n"
               << db.farms.size()     << " farms\n"
               << db.fields.size()    << " fields\n\n";
@@ -132,11 +136,15 @@ int main(int argc, const char* argv[]) {
 
     if (opts->insetFt != 0.0)
       db.inset(opts->insetName, opts->insetFt * mp_units::yard_pound::foot);
-    const auto ext = opts->outputPath.extension();
-    if (ext == ".wkt" || ext == ".WKT")
-      db.writeWkt(opts->outputPath);
-    else
-      db.writeXml(opts->outputPath);
+    {
+      const auto ext = opts->outputPath.extension();
+      if (ext == ".wkt")
+        db.writeWkt(opts->outputPath);
+      else if (ext == ".zip")
+        db.writeZip(opts->outputPath);
+      else
+        db.writeXml(opts->outputPath);
+    }
     return 0;
   }
   catch (std::exception& x) {

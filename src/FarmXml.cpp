@@ -1,11 +1,10 @@
 #include "FarmDb.hpp"
 #include "FarmGeo.hpp"
+#include "ZipArchive.hpp"
 
 #include "get_attr.hpp"
 
 #include <pugixml.hpp>
-
-#include <zip.h>
 
 #include <gsl-lite/gsl-lite.hpp>
 
@@ -130,6 +129,8 @@ const char* Name(PolygonType x) noexcept {
 namespace farm_db {
 
 namespace {
+
+namespace fs = std::filesystem;
 
 using XmlNode = pugi::xml_node;
 
@@ -575,52 +576,9 @@ void WriteField(XmlNode& node, const Field& field, int id,
     WriteSwath(pfd, s, ++swathId);
 } // WriteField
 
-pugi::xml_document ReadZip(const std::filesystem::path& zipPath) {
-  auto err = 0;
-  auto* zip = zip_open(zipPath.generic_string().c_str(), ZIP_RDONLY, &err);
-  if (!zip)
-    throw std::runtime_error("zip_open failed");
-
-  constexpr auto name = "TASKDATA/TASKDATA.XML";
-
-  auto* zf = zip_fopen(zip, name, 0);
-  if (!zf) {
-    zip_close(zip);
-    throw std::runtime_error("zip_fopen failed");
-  }
-
-  std::string str;
-  str.reserve(static_cast<std::size_t>(file_size(zipPath)));
-  std::vector<char> buf(8192);
-
-  for (;;) {
-    auto n = zip_fread(zf, buf.data(), buf.size());
-    if (n < 0) {
-      zip_fclose(zf);
-      zip_close(zip);
-      throw std::runtime_error("zip_fread failed");
-    }
-    if (n == 0) break;
-    str.append(buf.data(), static_cast<std::size_t>(n));
-  }
-
-  zip_fclose(zf);
-  zip_close(zip);
-
-  auto iss = std::istringstream(str);
-  auto doc = pugi::xml_document{};
-  auto res = doc.load(iss, pugi::parse_default | pugi::parse_ws_pcdata);
-  if (!res) {
-    auto msg = std::format("{}: XML parse error: {} (offset {})",
-                           name, res.description(), res.offset);
-    throw std::runtime_error{msg};
-  }
-  return doc;
-} // ReadZip
-
 } // local
 
-FarmDb FarmDb::ReadXml(const std::filesystem::path& input) {
+FarmDb FarmDb::ReadXml(const fs::path& input) {
   auto doc = pugi::xml_document{};
 
   auto ext = input.extension();
@@ -630,23 +588,20 @@ FarmDb FarmDb::ReadXml(const std::filesystem::path& input) {
                              pugi::parse_default | pugi::parse_ws_pcdata);
     if (!res) {
       auto msg = std::format("{}: XML parse error: {} (offset {})",
-                         input.generic_string(), res.description(), res.offset);
+                             input.string(), res.description(), res.offset);
       throw std::runtime_error{msg};
     }
   }
-  else if (ext == ".zip") {
-    doc = ReadZip(input);
-  }
   else {
     auto msg = std::string{"FarmDb::ReadXml: invalid filename extension: "}
-             + input.generic_string();
+             + input.string();
     throw std::runtime_error{msg};
   }
 
   auto root = doc.child(isoxml::Root);
   if (!root) {
     auto msg = std::format("{}: missing root <{}>",
-                           input.generic_string(), isoxml::Root);
+                           input.string(), isoxml::Root);
     throw std::runtime_error{msg};
   }
 
@@ -874,58 +829,47 @@ pugi::xml_document CreateDoc(const FarmDb& db) {
   return doc;
 } // CreateDoc
 
-bool WriteZip(const std::filesystem::path& zipPath, const std::string& xml) {
-  auto err = 0;
-  auto* zip = zip_open(zipPath.generic_string().c_str(),
-                       ZIP_CREATE | ZIP_TRUNCATE, &err);
-  if (!zip)
-    return false;
+} // local
 
-  auto* src = zip_source_buffer(zip, xml.data(), xml.size(), 0);
-  if (!src) {
-    zip_discard(zip);
-    return false;
+void FarmDb::writeXml(const fs::path& output) const {
+  auto ext = output.extension();
+  if (ext != ".xml" && ext != ".XML") {
+    auto msg = std::string{"FarmDb::writeXml: invalid filename extension: "}
+             + output.string();
+    throw std::runtime_error{msg};
   }
+  auto doc = CreateDoc(*this);
+  if (!doc.save_file(output.c_str(), "  ")) {
+    auto msg =std::string{"error writing '"} + output.string() + "'";
+    throw std::runtime_error{"FarmDb::writeXml:" + msg};
+  }
+} // writeXml
 
+namespace {
+
+void WriteZip(const fs::path& zipPath, const std::string& xml) {
   constexpr auto name = "TASKDATA/TASKDATA.XML";
-  if (zip_file_add(zip, name, src, ZIP_FL_OVERWRITE) < 0) {
-    zip_source_free(src);  // Only free on failure; on success zip owns src.
-    zip_discard(zip);
-    return false;
-  }
-
-  if (zip_close(zip) < 0) {  // Commits/writes the archive.
-    zip_discard(zip);
-    return false;
-  }
-  return true;
+  auto zip  = ZipArchive{zipPath, ZIP_CREATE | ZIP_TRUNCATE};
+  auto src  = zip.source(xml);
+  (void) zip.addFile(name, src, ZIP_FL_OVERWRITE);
+  zip.close();
 } // WriteZip
+
 
 } // local
 
-void FarmDb::writeXml(const std::filesystem::path& output) const {
-  auto doc = CreateDoc(*this);
+void FarmDb::writeZip(const fs::path& output) const {
   auto ext = output.extension();
-  if (ext == ".xml" || ext == ".XML") {
-    if (doc.save_file(output.c_str(), "  "))
-      return;
-  }
-  else if (ext == ".zip") {
-    auto os = std::ostringstream{};
-    if (os) {
-      doc.save(os, "  ");
-      if (WriteZip(output, os.str()))
-        return;
-    }
-  }
-  else {
-    auto msg = std::string{"FarmDb::writeXml: invalid filename extension: "}
-             + output.generic_string();
+  if (ext != ".zip") {
+    auto msg = std::string{"FarmDb::writeZip: invalid filename extension: "}
+             + output.string();
     throw std::runtime_error{msg};
   }
-  auto msg =std::string{"error writing '"} + output.generic_string() + "'";
-  throw std::runtime_error{"FarmDb::writeXml:" + msg};
-} // writeXml
+  auto doc = CreateDoc(*this);
+  auto os = std::ostringstream{};
+  doc.save(os, "  ");
+  WriteZip(output, os.str());
+} // writeZip
 
 } // farm_db
 

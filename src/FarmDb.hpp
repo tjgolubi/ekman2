@@ -209,8 +209,10 @@ struct FarmDb {
   void inset(const std::string& name, Distance dist);
   void writeXml(const std::filesystem::path& output) const;
   void writeWkt(const std::filesystem::path& output) const;
+  void writeZip(const std::filesystem::path& output) const;
   static FarmDb ReadXml(const std::filesystem::path& input);
   static FarmDb ReadShp(const std::filesystem::path& input);
+  static FarmDb ReadZip(const std::filesystem::path& input);
 }; // FarmDb
 
 } // farm_db

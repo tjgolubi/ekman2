@@ -19,7 +19,8 @@ INSET_XML_E=InsetXml.$E
 TGT1=$(INSET_XML_E)
 TARGETS=$(TGT1)
 
-SRC1:=InsetXml.cpp FarmDb.cpp FarmXml.cpp FarmWkt.cpp FarmShp.cpp FarmGeo.cpp BoundarySwaths.cpp
+SRC1:=InsetXml.cpp FarmDb.cpp FarmXml.cpp FarmWkt.cpp FarmShp.cpp FarmZip.cpp
+SRC1+=FarmGeo.cpp BoundarySwaths.cpp
 SOURCE:=$(SRC1)
 
 #SYSINCL:=$(XML)/src $(BOOST) $(addsuffix /include, $(UNITS)/src/core $(UNITS)/src/systems $(GSL))
