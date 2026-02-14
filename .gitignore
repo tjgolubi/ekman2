@@ -18,3 +18,4 @@ tjg/
 *.exe
 /mp-units
 /geometry
+ext/build
