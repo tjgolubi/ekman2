@@ -2,16 +2,9 @@
 # @copyright 2025 Terry Golubiewski, all rights reserved.
 # @author Terry Golubiewski
 
-export PROJNAME:=ekman2
 export PROJDIR := $(abspath ..)
-# SWDEV := $(PROJDIR)/SwDev
+SWDEV := $(PROJDIR)/SwDev
 include $(SWDEV)/project.mk
-
-APP  :=$(abspath $(HOME)/App)
-#BOOST:=$(APP)/boost
-UNITS:=$(APP)/mp-units
-GSL  :=$(APP)/gsl-lite
-XML  :=$(APP)/pugixml
 
 # Must use "=" instead of ":=" because $E will be defined below.
 INSET_XML_E=InsetXml.$E
@@ -25,25 +18,27 @@ SOURCE:=$(SRC1)
 
 #SYSINCL:=$(XML)/src $(BOOST) $(addsuffix /include, $(UNITS)/src/core $(UNITS)/src/systems $(GSL))
 
-SYSINCL:=$(XML)/src $(addsuffix /include, $(UNITS)/src/core $(UNITS)/src/systems $(GSL))
+#SYSINCL:=$(XML)/src $(BOOST) $(SHP) $(ZIP)/lib $(ZIP)/build $(addsuffix /include, $(UNITS)/src/core $(UNITS)/src/systems $(GSL))
+SYSINCL:=$(PROJDIR)/ext/build/include
+
 INCLUDE:=$(PROJDIR)
 
-# Must use "=" because $A Will be defined below.
-LIBS=$(XML)/build/libpugixml.$A
-
-LDLIBS+= -lboost_program_options-mt
+LDFLAGS+= -L$(PROJDIR)/ext/build/lib
+LDLIBS+= -lboost_program_options
+LDLIBS+= -lpugixml
 LDLIBS+= -lshp
-LDLIBS+= -lzip -ladvapi32 -lbz2 -llzma -lzstd -lbcrypt -lz
-CDEFS+= -DZIP_STATIC
+LDLIBS+= -lzip
+LDLIBS+= -lz
+
+#LDLIBS+= -ladvapi32 -lbcrypt
+#CDEFS+= -DZIP_STATIC
 
 #DEBUG=1
 
-SHELL:=/bin/bash
-.SHELLFLAGS:=-eu -o pipefail -c
-.ONESHELL:
-
 include $(SWDEV)/$(COMPILER).mk
 include $(SWDEV)/build.mk
+
+CFLAGS += -Wno-error=deprecated-declarations
 
 .PHONY: all clean scour
 

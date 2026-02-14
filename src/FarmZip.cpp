@@ -58,7 +58,7 @@ struct TempDir {
   return dir;
 } // MakeUniqueTempDir
 
-[[noreturn]] ThrowZipError( const fs::path& path, const std::string& msg) {
+[[noreturn]] void ThrowZipError( const fs::path& path, const std::string& msg) {
   std::ostringstream oss;
   oss << path.generic_string() << ": " << msg;
   throw std::runtime_error{oss.str()};

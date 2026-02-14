@@ -145,6 +145,7 @@ int main(int argc, const char* argv[]) {
       else
         db.writeXml(opts->outputPath);
     }
+    std::cerr << "Successful completion.\n";
     return 0;
   }
   catch (std::exception& x) {

@@ -1,0 +1,18 @@
+[submodule "ext/gsl-lite"]
+	path = ext/gsl-lite
+	url = https://github.com/gsl-lite/gsl-lite.git
+[submodule "ext/boost"]
+	path = ext/boost
+	url = https://github.com/boostorg/boost.git
+[submodule "ext/mp-units"]
+	path = ext/mp-units
+	url = https://github.com/mpusz/mp-units.git
+[submodule "ext/pugixml"]
+	path = ext/pugixml
+	url = https://github.com/zeux/pugixml.git
+[submodule "ext/shapelib"]
+	path = ext/shapelib
+	url = https://github.com/OSGeo/shapelib.git
+[submodule "ext/libzip"]
+	path = ext/libzip
+	url = https://github.com/nih-at/libzip.git
