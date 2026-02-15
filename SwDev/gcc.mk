@@ -1,4 +1,5 @@
-# Copyright 2002-2011 Rockwell Collins.  All rights reserved.
+## @file
+## @copyright 2002 Terry Golubiewski, all rights reserved.
 
 CC=gcc
 CXX=g++
@@ -39,6 +40,9 @@ else
 endif
 
 CXXFLAGS=$(CFLAGS)
+
+INCLPATH ?=
+INCLUDE  ?=
 
 GCCSYS :=
 GCCINCL = $(addprefix -I,$(strip $(INCLPATH) $(INCLUDE) $(SYSINCL) $(GCCSYS)))

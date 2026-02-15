@@ -1,9 +1,8 @@
-# @file
-# @copyright 2025 Terry Golubiewski, all rights reserved.
-# @author Terry Golubiewski
+## @file
+## @copyright 2025 Terry Golubiewski, all rights reserved.
 
 SHELL := bash
-SHELLFLAGS := -ue -o pipefail -c
+.SHELLFLAGS := -ue -o pipefail -c
 .ONESHELL:
 
 CDEFS += -DVER=$(VERSION)
@@ -18,6 +17,19 @@ BASENAMES := $(notdir $(basename $(sort $(SOURCE))))
 OBJ    := $(addsuffix .$O, $(BASENAMES))
 DFILES := $(addsuffix .$D, $(BASENAMES))
 LOB    := $(addsuffix .lob, $(BASENAMES))
+
+SRC1 ?=
+SRC2 ?=
+SRC3 ?=
+SRC4 ?=
+SRC5 ?=
+SRC6 ?=
+SRC7 ?=
+SRC8 ?=
+SRC9 ?=
+
+CLEAN ?=
+SCOUR ?=
 
 OBJ1 := $(addsuffix .$O, $(notdir $(basename $(SRC1))))
 OBJ2 := $(addsuffix .$O, $(notdir $(basename $(SRC2))))

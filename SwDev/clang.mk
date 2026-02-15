@@ -1,4 +1,5 @@
-# Copyright 2002-2025 Terry Golubiewski, all rights reserved.
+## @file
+## @copyright 2002 Terry Golubiewski, all rights reserved.
 
 CC=gcc --std=gnu23
 CXX=g++ --std=c++23

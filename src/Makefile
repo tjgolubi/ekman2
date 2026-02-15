@@ -1,6 +1,5 @@
-# @file
-# @copyright 2025 Terry Golubiewski, all rights reserved.
-# @author Terry Golubiewski
+## @file
+## @copyright 2025 Terry Golubiewski, all rights reserved.
 
 export PROJDIR := $(abspath ..)
 SWDEV := $(PROJDIR)/SwDev
@@ -16,12 +15,7 @@ SRC1:=InsetXml.cpp FarmDb.cpp FarmXml.cpp FarmWkt.cpp FarmShp.cpp FarmZip.cpp
 SRC1+=FarmGeo.cpp BoundarySwaths.cpp
 SOURCE:=$(SRC1)
 
-#SYSINCL:=$(XML)/src $(BOOST) $(addsuffix /include, $(UNITS)/src/core $(UNITS)/src/systems $(GSL))
-
-#SYSINCL:=$(XML)/src $(BOOST) $(SHP) $(ZIP)/lib $(ZIP)/build $(addsuffix /include, $(UNITS)/src/core $(UNITS)/src/systems $(GSL))
 SYSINCL:=$(PROJDIR)/ext/build/include
-
-INCLUDE:=$(PROJDIR)
 
 LDFLAGS+= -L$(PROJDIR)/ext/build/lib
 LDLIBS+= -lboost_program_options
@@ -35,6 +29,10 @@ LDLIBS+= -lz
 
 #DEBUG=1
 
+.ONESHELL:
+SHELL := bash
+.SHELLFLAGS := -euo pipefail -c
+
 include $(SWDEV)/$(COMPILER).mk
 include $(SWDEV)/build.mk
 
@@ -44,5 +42,5 @@ CFLAGS += -Wno-error=deprecated-declarations
 
 all: depend $(TARGETS)
 
-$(TGT1): $(OBJ1) $(LIBS)
+$(TGT1): $(OBJ1)
 	$(LINK)

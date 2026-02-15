@@ -1,4 +1,7 @@
-# Copyright 2025 Terry Golubiewski, all rights reserved.
+## @file
+## @copyright 2025 Terry Golubiewski, all rights reserved.
+
+MAKEFLAGS += --warn-undefined-variables
 
 PROJNAME := InsetXml
 VERSION  := 0.0.0

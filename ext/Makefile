@@ -1,3 +1,6 @@
+## @file
+## @copyright 2026 Terry Golubiewski, all rights reserved.
+
 PROJDIR := $(abspath ..)
 
 EXT := $(PROJDIR)/ext
@@ -7,17 +10,17 @@ INC := $(PFX)/include
 WRK := $(PFX)/_work
 
 .ONESHELL:
-SHELL      := bash
-.SHELLOPTS := -ueo pipefail
+SHELL := bash
+.SHELLFLAGS := -ueo pipefail -c
 
-.PHONY: all clean scour boost libzip shapelib gsl-lite pugixml mp-units
+.PHONY: all clean scour boost boost-scour libzip shapelib gsl-lite pugixml mp-units
 
 all: boost libzip shapelib gsl-lite pugixml mp-units
 
 clean:
 	rm -fr "$(WRK)"
 
-scour: clean
+scour: clean boost-scour
 	rm -fr "$(PFX)"
 
 # --------------------------------------------------------------------
@@ -28,7 +31,7 @@ BOOST_SRC   := $(EXT)/boost
 BOOST_WRK   := $(WRK)/boost
 BOOST_STAGE := $(BOOST_WRK)/stage
 BOOST_BUILD := $(BOOST_WRK)/build
-BOOST_TGT   := $(LIB)/libboost_program_options.a
+BOOST_TGT   := $(LIB)/.boost-stamp
 
 boost: $(BOOST_TGT) $(INC)/boost
 
@@ -45,11 +48,18 @@ $(BOOST_STAGE): $(BOOST_SRC)/b2
 
 $(BOOST_TGT): $(BOOST_STAGE)
 	mkdir -p "$(LIB)"
-	cp -pv $(BOOST_STAGE)/lib/*.a "$(LIB)/"
+	cp -p $(BOOST_STAGE)/lib/*.a "$(LIB)/"
+	touch "$@"
 
 $(BOOST_SRC)/b2: $(BOOST_SRC)/bootstrap.sh
 	cd "$(BOOST_SRC)"
 	./bootstrap.sh
+
+boost-scour:
+	cd "$(BOOST_SRC)"
+	rm -fr boost b2.exe project-config.jam
+	cd tools/build/src/engine
+	rm -f *.o *.exe
 
 # --------------------------------------------------------------------
 # libzip
